@@ -6,7 +6,7 @@ import (
 	"io"
 	"math/rand/v2"
 
-	"github.com/ysmilda/go-m1/pkg/buffer"
+	"github.com/ysmilda/m1-go/pkg/buffer"
 )
 
 const (

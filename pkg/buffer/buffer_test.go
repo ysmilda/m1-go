@@ -14,7 +14,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	. "github.com/ysmilda/go-m1/pkg/buffer"
+	. "github.com/ysmilda/m1-go/pkg/buffer"
 )
 
 const N = 10000 // make this bigger for a larger (and slower) test

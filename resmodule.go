@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/ysmilda/go-m1/pkg/rpc"
+	"github.com/ysmilda/m1-go/pkg/rpc"
 )
 
 const (

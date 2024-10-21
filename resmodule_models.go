@@ -3,7 +3,7 @@ package m1
 import (
 	"time"
 
-	"github.com/ysmilda/go-m1/pkg/buffer"
+	"github.com/ysmilda/m1-go/pkg/buffer"
 )
 
 // ExtPingResponse contains the response of the ExtPing procedure.
