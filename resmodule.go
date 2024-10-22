@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"net"
-	"time"
 
 	"github.com/ysmilda/m1-go/pkg/rpc"
 )
@@ -50,14 +49,8 @@ func (r *ResModule) FlashLed() error {
 		return err
 	}
 
-	conn := r.client.getConnection()
-	err = conn.SetDeadline(time.Now().Add(10 * time.Second))
-	if err != nil {
-		return err
-	}
-
 	err = rpc.CallWithoutRead(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_DEFAULT,
@@ -74,7 +67,7 @@ func (r *ResModule) FlashLed() error {
 func (r *ResModule) ExtPing(ipMask net.IP) (*ExtPingResponse, error) {
 	mask := binary.LittleEndian.Uint32(ipMask.To4())
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_DEFAULT,
@@ -101,7 +94,7 @@ func (r *ResModule) ExtPing(ipMask net.IP) (*ExtPingResponse, error) {
 // These are necessary for making RPC calls against that module.
 func (r *ResModule) GetModuleNumber(module string) (*ModuleNumberResponse, error) {
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_DEFAULT,
@@ -126,7 +119,7 @@ func (r *ResModule) GetModuleNumber(module string) (*ModuleNumberResponse, error
 // GetSystemInfo returns the system information of the target.
 func (r *ResModule) GetSystemInfo() (*SystemInfoResponse, error) {
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -166,7 +159,7 @@ func (r *ResModule) Login(user, password, toolName string, loginChecker bool) (*
 	}
 
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -214,7 +207,7 @@ func (r *ResModule) Login2(
 	data = append(data, uint32(0), uint32(0), uint32(0), uint32(0), uint32(0))
 
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -241,7 +234,7 @@ func (r *ResModule) Login2(
 // Logout logs out the user from the target.
 func (r *ResModule) Logout(userParam uint32) error {
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -270,7 +263,7 @@ func (r *ResModule) Logout(userParam uint32) error {
 // name of the module that is used for the login. The user and password parameters are the credentials of the user.
 func (r *ResModule) ExtLogin(user, password, module string, userParam uint32) (*ExtLoginResponse, error) {
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -305,7 +298,7 @@ func (r *ResModule) ExtLogout(user, password, module string, userParam uint32, u
 	}
 
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -336,7 +329,7 @@ func (r *ResModule) ExtLogout(user, password, module string, userParam uint32, u
 // session and the timeout of the session. If the session is not renewed within the timeout, the session is closed.
 func (r *ResModule) Open() (*OpenResponse, error) {
 	res, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -360,7 +353,7 @@ func (r *ResModule) Open() (*OpenResponse, error) {
 // Close closes the connection to the RES module on the target.
 func (r *ResModule) Close() error {
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -387,7 +380,7 @@ func (r *ResModule) Close() error {
 // application and the system.
 func (r *ResModule) Renew() (*RenewResponse, error) {
 	buf, err := rpc.Call(
-		r.client.getConnectionWithTimeout(),
+		r.client,
 		rpc.Header{
 			Module:    _MODULE_RES,
 			Version:   _VERSION_RES,
@@ -426,7 +419,7 @@ func (r *ResModule) ListModules() ([]string, error) {
 		end := start + modulesPerCall - 1
 
 		buf, err := rpc.Call(
-			r.client.getConnectionWithTimeout(),
+			r.client,
 			rpc.Header{
 				Module:    _MODULE_RES,
 				Version:   _VERSION_DEFAULT,

@@ -41,11 +41,7 @@ func NewTarget(ip net.IP, protocol protocol, timeout time.Duration) (*Target, er
 		return nil, err
 	}
 
-	client := &client{
-		conn:    conn,
-		timeout: timeout,
-	}
-
+	client := newClient(conn, timeout, protocol == Protocols.TCP)
 	t := &Target{
 		client: client,
 		RES:    newResModule(client),
