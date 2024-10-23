@@ -10,14 +10,14 @@ import (
 )
 
 const (
-	_RPC_CALL_INDICATOR    = 0
-	_RPC_REPLY_INDICATOR   = 1
-	_RPC_MESSAGE_VERSION   = 2
-	_MESSAGE_ACCEPTED      = 0
-	_PROGRAM_MISMATCH      = 2
-	_PROCEDURE_UNAVAILABLE = 3
-	_RPC_MISMATCH          = 0
-	_AUTH_ERROR            = 1
+	_RPC_CallIndicator        = 0
+	_RPC_ReplyIndicator       = 1
+	_RPC_MessageVersion       = 2
+	_RPC_MessageAccepted      = 0
+	_RPC_ProgramMismatch      = 2
+	_RPC_ProcedureUnavailable = 3
+	_RPC_Mismatch             = 0
+	_RPC_AuthError            = 1
 
 	bufferSize = 2048
 )
@@ -94,8 +94,8 @@ func CallWithoutRead(w io.Writer, header Header, data ...any) error {
 // This should always be the first thing written to the buffer.
 func writeHeader(body *buffer.Buffer, header Header) {
 	body.BigEndian.WriteUint32(header.xID)
-	body.BigEndian.WriteUint32(_RPC_CALL_INDICATOR)
-	body.BigEndian.WriteUint32(_RPC_MESSAGE_VERSION)
+	body.BigEndian.WriteUint32(_RPC_CallIndicator)
+	body.BigEndian.WriteUint32(_RPC_MessageVersion)
 	body.BigEndian.WriteUint32(header.Module)
 	body.BigEndian.WriteUint32(header.Version)
 	body.BigEndian.WriteUint32(header.Procedure)
@@ -144,27 +144,27 @@ func writeData(body *buffer.Buffer, data ...any) {
 // This should always be called after verifying the xID.
 // If the response is invalid, an error is returned.
 func verifyResponse(body *buffer.Buffer) error {
-	if code, _ := body.BigEndian.ReadUint32(); code != _RPC_REPLY_INDICATOR {
+	if code, _ := body.BigEndian.ReadUint32(); code != _RPC_ReplyIndicator {
 		fmt.Println("Invalid response", code)
 		return ErrNoReplyFrame
 	}
 
 	switch code, _ := body.BigEndian.ReadUint32(); code {
-	case _MESSAGE_ACCEPTED:
+	case _RPC_MessageAccepted:
 		body.Skip(8) // dummies
 
 		switch code, _ := body.BigEndian.ReadUint32(); code {
-		case _PROGRAM_MISMATCH:
+		case _RPC_ProgramMismatch:
 			return ErrProgramMismatch
-		case _PROCEDURE_UNAVAILABLE:
+		case _RPC_ProcedureUnavailable:
 			return ErrProcedureUnavailable
 		}
 
 	default:
 		switch code, _ := body.BigEndian.ReadUint32(); code {
-		case _RPC_MISMATCH:
+		case _RPC_Mismatch:
 			return ErrRPCMismatch
-		case _AUTH_ERROR:
+		case _RPC_AuthError:
 			return ErrAuthError
 		default:
 			return fmt.Errorf("%w: unknown error code (%d)", ErrInvalidResponse, code)
