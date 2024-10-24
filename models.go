@@ -1,6 +1,7 @@
 package m1
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ysmilda/m1-go/pkg/buffer"
@@ -209,4 +210,206 @@ func (r *Renew) parse(in *buffer.Buffer) uint32 {
 	r.AuthLen, _ = in.LittleEndian.ReadUint32()
 	r.Auth, _ = in.ReadBytes(128)
 	return returncode
+}
+
+type SessionInfo struct {
+	Name   string
+	UserID uint32
+	Start  time.Time
+}
+
+func (v *SessionInfo) parse(in *buffer.Buffer) uint32 {
+	returnCode, _ := in.LittleEndian.ReadUint32()
+	v.Name, _ = in.ReadString(_VHD_UserNameLength)
+	v.UserID, _ = in.LittleEndian.ReadUint32()
+	start, _ := in.LittleEndian.ReadUint32()
+	v.Start = time.Unix(int64(start), 0)
+	return returnCode
+}
+
+type SviVariable struct {
+	Name  string
+	Error error
+
+	Value   any // After a read the value will be stored here.
+	Address uint64
+	Format  uint16 // TODO: We need to parse this to a Go type.
+	Length  uint16
+
+	initialized bool
+}
+
+func NewSviVariable(module, name string) *SviVariable {
+	return &SviVariable{Name: fmt.Sprintf("%s/%s", module, name)}
+}
+
+func (s SviVariable) IsInitialized() bool {
+	return s.initialized
+}
+
+func (s SviVariable) IsBlock() bool {
+	return s.Format&_FormatBlock != 0
+}
+
+func (s SviVariable) GetArrayLength() int {
+	if !s.IsBlock() {
+		return 1
+	}
+	return int(s.Length)
+}
+
+func (s SviVariable) getBufferLength() int {
+	return int(s.Length) + 3&_Align
+}
+
+func (s *SviVariable) getDataTypeLength() int {
+	switch s.Format & _FormatTypeMask {
+	case _FormatUint1, _FormatUint8, _FormatSint8, _FormatChar8,
+		_FormatBool, _FormatMixed, _FormatString, _FormatStringListBase:
+		return 1
+
+	case _FormatUint16, _FormatSint16, _FormatChar16, _FormatUnicodeStringListBase:
+		return 2
+
+	case _FormatUint32, _FormatSint32, _FormatReal32:
+		return 4
+
+	case _FormatUint64, _FormatSint64, _FormatReal64:
+		return 8
+
+	default:
+		return 1
+	}
+}
+
+func (s *SviVariable) parse(in *buffer.Buffer) {
+	s.Address, _ = in.LittleEndian.ReadUint64()
+	s.Format, _ = in.LittleEndian.ReadUint16()
+	s.Length, _ = in.LittleEndian.ReadUint16()
+}
+
+func (s *SviVariable) parseValue(in *buffer.Buffer) {
+	if s.IsBlock() {
+		switch s.Format & _FormatElementaryTypeMask {
+		case _FormatUint1, _FormatBool:
+			val, _ := in.ReadBytes(int(s.Length))
+			out := make([]bool, s.Length)
+			for i, v := range val {
+				out[i] = v == 1
+			}
+			s.Value = out
+
+		case _FormatUint8:
+			s.Value, _ = in.ReadBytes(int(s.Length))
+
+		case _FormatSint8:
+			val, _ := in.ReadBytes(int(s.Length))
+			out := make([]int8, s.Length)
+			for i, v := range val {
+				out[i] = int8(v)
+			}
+			s.Value = out
+
+		case _FormatUint16:
+			out := make([]uint16, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadUint16()
+			}
+			s.Value = out
+
+		case _FormatSint16:
+			out := make([]int16, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadInt16()
+			}
+			s.Value = out
+
+		case _FormatUint32:
+			out := make([]uint32, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadUint32()
+			}
+			s.Value = out
+
+		case _FormatSint32:
+			out := make([]int32, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadInt32()
+			}
+			s.Value = out
+
+		case _FormatReal32:
+			out := make([]float32, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadFloat32()
+			}
+			s.Value = out
+
+		case _FormatUint64:
+			out := make([]uint64, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadUint64()
+			}
+			s.Value = out
+
+		case _FormatSint64:
+			out := make([]int64, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadInt64()
+			}
+			s.Value = out
+
+		case _FormatReal64:
+			out := make([]float64, s.getDataTypeLength())
+			for i := range out {
+				out[i], _ = in.LittleEndian.ReadFloat64()
+			}
+			s.Value = out
+
+		case _FormatChar8, _FormatChar16:
+			s.Value, _ = in.ReadString(int(s.Length))
+
+		case _FormatMixed:
+			s.Value, _ = in.ReadBytes(int(s.Length))
+
+			// TODO: Not sure how to support these, or what they are.
+			// case _FormatStringList, _FormatUnicodeStringList:
+		}
+	}
+
+	switch s.Format & _FormatElementaryTypeMask {
+	case _FormatUint1:
+		s.Value, _ = in.ReadBool()
+	case _FormatUint8:
+		val, _ := in.ReadByte()
+		s.Value = val
+	case _FormatSint8:
+		val, _ := in.ReadByte()
+		s.Value = int8(val)
+	case _FormatUint16:
+		s.Value, _ = in.LittleEndian.ReadUint16()
+	case _FormatSint16:
+		s.Value, _ = in.LittleEndian.ReadInt16()
+	case _FormatUint32:
+		s.Value, _ = in.LittleEndian.ReadUint32()
+	case _FormatSint32:
+		s.Value, _ = in.LittleEndian.ReadInt32()
+	case _FormatReal32:
+		s.Value, _ = in.LittleEndian.ReadFloat32()
+	case _FormatBool:
+		s.Value, _ = in.ReadBool()
+	case _FormatUint64:
+		s.Value, _ = in.LittleEndian.ReadUint64()
+	case _FormatSint64:
+		s.Value, _ = in.LittleEndian.ReadInt64()
+	case _FormatReal64:
+		s.Value, _ = in.LittleEndian.ReadFloat64()
+	case _FormatChar8:
+		s.Value, _ = in.ReadString(1)
+	case _FormatMixed:
+		s.Value, _ = in.ReadBytes(int(s.Length))
+
+	default:
+		s.Error = fmt.Errorf("unknown format: %d", s.Format)
+	}
 }

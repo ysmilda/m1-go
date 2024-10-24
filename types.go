@@ -1,6 +1,7 @@
 package m1
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ysmilda/m1-go/pkg/buffer"
@@ -40,6 +41,10 @@ func (s *Version) parse(in *buffer.Buffer) {
 	case 3:
 		s.ReleaseType = "release"
 	}
+}
+
+func (s *Version) String() string {
+	return fmt.Sprintf("V%d.%d.%d-%s", s.Major, s.Minor, s.Patch, s.ReleaseType)
 }
 
 // Compare compares a Version (v1) with another Version (v2).
