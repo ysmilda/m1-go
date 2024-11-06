@@ -21,25 +21,25 @@ The package provides an interface to interact with the M1 controller. The interf
 The following example shows how to connect to the controller and retrieve the controller information:
 
 ```go
-    t, err := m1.NewTarget(net.IPv4(192, 168, 180, 91), m1.Protocols.UDP, 5*time.Second)
-	if err != nil {
-		...
-	}
+t, err := m1.NewTarget(net.IPv4(192, 168, 180, 91), m1.Protocols.UDP, 5*time.Second)
+if err != nil {
+	// ...
+}
 
-	info, err := t.RES.GetSystemInfo()
-    if err != nil {
-        ...
-    }
+info, err := t.RES.GetSystemInfo()
+if err != nil {
+	// ...
+}
 
-    err = t.Login("user", "password", "m1-go")
-	if err != nil {
-        ...
-	}
+err = t.Login("user", "password", "m1-go")
+if err != nil {
+	// ...
+}
 
-	modules, err := t.RES.ListModules()
-	if err != nil {
-        ...
-	}
+modules, err := t.RES.ListModules()
+if err != nil {
+	// ...
+}
 ```
 
 The full documentation can be found at [pkg.go.dev](https://pkg.go.dev/github.com/ysmilda/m1-go).

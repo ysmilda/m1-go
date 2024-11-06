@@ -299,6 +299,13 @@ func (b *Buffer) WriteByte(c byte) error {
 	return nil
 }
 
+func (b *Buffer) WriteBool(v bool) error {
+	if v {
+		return b.WriteByte(1)
+	}
+	return b.WriteByte(0)
+}
+
 // WriteRune appends the UTF-8 encoding of Unicode code point r to the
 // buffer, returning its length and an error, which is always nil but is
 // included to match [bufio.Writer]'s WriteRune. The buffer is grown as needed;

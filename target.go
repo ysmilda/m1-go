@@ -7,10 +7,22 @@ import (
 )
 
 // Target represents a target device.
+// It's methods are convenience methods around the various modules on the target.
+// For more advanced usage, the modules can be used directly via the struct members.
+// Make sure to follow the documentation of the modules when using them directly.
+// The target should be closed after usage.
 type Target struct {
 	client *client
 
+	// RES - This module offers access to basic information about the target as well as the ability to log in and out.
 	RES *ResModule
+
+	// VHD - This module offers access to t.b.d.
+	//
+	// To use this module one must be logged in and have initialized the VHD module by calling target.InitializeVHD().
+	VHD *VhdModule
+
+	Modules map[string]*Module
 
 	sessionTimeout  int32
 	sessionLifetime int32
@@ -21,32 +33,22 @@ type Target struct {
 }
 
 // NewTarget creates a new target with the given IP address, protocol and timeout.
-func NewTarget(ip net.IP, protocol protocol, timeout time.Duration) (*Target, error) {
-	var (
-		conn net.Conn
-		err  error
-	)
+// Protocol must be either "tcp" or "udp". "tcp" is currently not fully functional.
+func NewTarget(ip net.IP, protocol string, timeout time.Duration) (*Target, error) {
+	client := newClient(ip, timeout, protocol)
 
-	switch protocol {
-	case Protocols.UDP:
-		conn, err = net.Dial("udp", fmt.Sprintf("%s:%d", ip.String(), 3000))
-
-	case Protocols.TCP:
-		conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", ip.String(), 3500))
-
-	default:
-		return nil, fmt.Errorf("unsupported protocol %s", protocol)
-	}
+	res, err := newResModule(client)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create RES module: %w", err)
 	}
 
-	client := newClient(conn, timeout, protocol == Protocols.TCP)
 	t := &Target{
-		client: client,
-		RES:    newResModule(client),
+		client:  client,
+		RES:     res,
+		Modules: make(map[string]*Module),
 	}
 
+	// Setup the connection to the target.
 	err = t.connect()
 	if err != nil {
 		return nil, err
@@ -63,7 +65,14 @@ func (t *Target) Close() error {
 		return err
 	}
 
-	return t.client.conn.Close()
+	if t.VHD != nil {
+		err = t.VHD.Close()
+		if err != nil {
+			return err
+		}
+	}
+
+	return t.client.close()
 }
 
 // Login logs in to the target with the given user and password.
@@ -97,6 +106,37 @@ func (t *Target) Logout() error {
 	return t.RES.Logout(0)
 }
 
+func (t *Target) InitializeVHD() error {
+	// Create a session for the VHD module.
+	info, err := t.RES.GetModuleNumber("VHD")
+	if err != nil {
+		return fmt.Errorf("failed to get VHD module number: %w", err)
+	}
+
+	vhd, err := newVhdModule(t.client, *info)
+	if err != nil {
+		return fmt.Errorf("failed to create VHD module: %w", err)
+	}
+
+	t.VHD = vhd
+	return nil
+}
+
+func (t *Target) ConnectModule(moduleName string) error {
+	info, err := t.RES.GetModuleNumber(moduleName)
+	if err != nil {
+		return fmt.Errorf("failed to get module number for %s: %w", moduleName, err)
+	}
+
+	m, err := newModule(t.client, moduleName, *info, t.msysVersion)
+	if err != nil {
+		return fmt.Errorf("failed to create module %s: %w", moduleName, err)
+	}
+
+	t.Modules[moduleName] = m
+	return nil
+}
+
 // connect connects to the target and initializes the target.
 func (t *Target) connect() error {
 	info, err := t.RES.GetSystemInfo()
@@ -118,6 +158,7 @@ func (t *Target) connect() error {
 		t.sessionTimeout = settings.SessionTimeout
 		t.sessionLifetime = settings.SessionLifetime
 
+		t.client.maxCallLength = settings.SMIMessageSize
 		t.client.setAuth(settings.Auth, settings.AuthLen)
 	}
 
