@@ -1,6 +1,7 @@
 package m1
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -12,8 +13,6 @@ import (
 // Make sure to follow the documentation of the modules when using them directly.
 // The target should be closed after usage.
 type Target struct {
-	client *client
-
 	// RES - This module offers access to basic information about the target as well as the ability to log in and out.
 	RES *ResModule
 
@@ -22,7 +21,11 @@ type Target struct {
 	// To use this module one must be logged in and have initialized the VHD module by calling target.InitializeVHD().
 	VHD *VhdModule
 
+	INFO *InfoModule
+
 	Modules map[string]*Module
+
+	client *client
 
 	sessionTimeout  int32
 	sessionLifetime int32
@@ -53,6 +56,16 @@ func NewTarget(ip net.IP, protocol string, timeout time.Duration) (*Target, erro
 	if err != nil {
 		return nil, err
 	}
+
+	infoModuleInfo, err := t.RES.GetModuleNumber("INFO")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get INFO module number: %w", err)
+	}
+	info, err := newInfoModule(client, *infoModuleInfo, t.msysVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create INFO module: %w", err)
+	}
+	t.INFO = info
 
 	return t, nil
 }
@@ -113,7 +126,7 @@ func (t *Target) InitializeVHD() error {
 		return fmt.Errorf("failed to get VHD module number: %w", err)
 	}
 
-	vhd, err := newVhdModule(t.client, *info)
+	vhd, err := newVhdModule(t.client, *info, t.msysVersion)
 	if err != nil {
 		return fmt.Errorf("failed to create VHD module: %w", err)
 	}
@@ -123,6 +136,10 @@ func (t *Target) InitializeVHD() error {
 }
 
 func (t *Target) ConnectModule(moduleName string) error {
+	if moduleName == "RES" || moduleName == "VHD" || moduleName == "INFO" {
+		return errors.New("use the target struct members for the RES, VHD and INFO modules")
+	}
+
 	info, err := t.RES.GetModuleNumber(moduleName)
 	if err != nil {
 		return fmt.Errorf("failed to get module number for %s: %w", moduleName, err)
@@ -147,6 +164,9 @@ func (t *Target) connect() error {
 	t.loginChecker = info.LoginChecker
 	t.loginRequired = info.LoginRequired
 	t.msysVersion = info.MSysVersion
+
+	// At the moment we opened the connection to the RES module we didn't know the version yet.
+	t.RES.msysVersion = t.msysVersion
 
 	// If the version is newer than 3.95.0-release we need to open the RES module.
 	if info.MSysVersion.Compare(Version{Major: 3, Minor: 95, Patch: 0, ReleaseType: "release"}) >= 0 {

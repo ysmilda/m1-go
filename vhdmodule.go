@@ -36,8 +36,7 @@ const (
 var ErrFailedToInitializeVariables = fmt.Errorf("failed to initialize variables")
 
 type VhdModule struct {
-	client *client
-	info   ModuleInfo
+	*Module
 
 	sessionName string
 	userID      uint32
@@ -45,16 +44,15 @@ type VhdModule struct {
 
 // newVhdModule creates a new session for the VHD module. Make sure to have logged in on the client before calling
 // this function. Make sure to close the module when it is no longer needed.
-func newVhdModule(client *client, info ModuleInfo) (*VhdModule, error) {
-	vhd := &VhdModule{
-		client:      client,
-		info:        info,
-		sessionName: fmt.Sprintf("m1c-%d-%d", rand.Uint32()%1000, time.Now().UnixNano()),
+func newVhdModule(client *client, info ModuleInfo, msysversion Version) (*VhdModule, error) {
+	v, err := newModule(client, "VHD", info, msysversion)
+	if err != nil {
+		return nil, err
 	}
 
-	err := client.addConnection(info)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add connection: %w", err)
+	vhd := &VhdModule{
+		Module:      v,
+		sessionName: fmt.Sprintf("m1c-%d-%d", rand.Uint32()%1000, time.Now().UnixNano()),
 	}
 
 	session, err := vhd.GetSessionInfo()

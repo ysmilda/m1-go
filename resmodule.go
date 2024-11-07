@@ -25,30 +25,23 @@ const (
 	_RES_Procedure_FlashLed        = 324
 )
 
-// ResModule wraps the RES module of the M1 controller.
-// It should not be created directly, but by using the RES field of the Target struct.
+// ResModule is a wrapper around the RES module of the M1 controller.
+// It provides functions to interact with the RES module.
 type ResModule struct {
-	client *client
-	info   ModuleInfo
+	*Module
 }
 
 func newResModule(client *client) (*ResModule, error) {
-	r := &ResModule{
-		client: client,
-		// The module info for the RES module is constant.
-		info: ModuleInfo{
-			ModuleNumber: (0x20000000 | 0x00001000),
-			UDPPort:      3000,
-			TCPPort:      3500,
-		},
-	}
-
-	err := client.addConnection(r.info)
+	r, err := newModule(client, "RES", ModuleInfo{
+		ModuleNumber: (0x20000000 | 0x00001000),
+		UDPPort:      3000,
+		TCPPort:      3500,
+	}, Version{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create res module: %w", err)
 	}
 
-	return r, nil
+	return &ResModule{r}, nil
 }
 
 // FlashLed flashes the led of the target for approximately 5 seconds.

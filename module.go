@@ -41,15 +41,7 @@ func newModule(client *client, name string, info ModuleInfo, msysVersion Version
 	return m, nil
 }
 
-func (m *Module) GetVariableCount() (uint32, error) {
-	info, err := m.GetSVIServerInfo()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get variable count: %w", err)
-	}
-
-	return info.NumberOfVariables, nil
-}
-
+// GetSVIServerInfo returns the server information of the SVI server.
 func (m *Module) GetSVIServerInfo() (*SVIServerInfo, error) {
 	buf, err := rpc.Call(
 		m.client.getConnection(m.info),
@@ -73,6 +65,18 @@ func (m *Module) GetSVIServerInfo() (*SVIServerInfo, error) {
 	return reply, nil
 }
 
+// GetVariableCount returns the number of variables of the module.
+func (m *Module) GetVariableCount() (uint32, error) {
+	info, err := m.GetSVIServerInfo()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get variable count: %w", err)
+	}
+
+	return info.NumberOfVariables, nil
+}
+
+// ListVariables returns a list of all variables of the module.
+// The returned variables are not initialized. To initialize them, use the VHD module on the target.
 func (m *Module) ListVariables() ([]Variable, error) {
 	version425 := Version{Major: 4, Minor: 25, Patch: 0, ReleaseType: "release"}
 	if m.msysVersion.Compare(version425) >= 0 {
