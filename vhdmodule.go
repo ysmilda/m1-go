@@ -406,7 +406,7 @@ func (v *VhdModule) WriteVariables(variables map[*Variable]any) error {
 					data = append(data, uint32(_VHD_SingleBtype))
 				}
 				data = append(data, variable.Address)
-				buffer, err := variable.valueToBuffer(entry)
+				buffer, err := variable.valueToBuffer(entry.value)
 				if err != nil {
 					return fmt.Errorf("failed to write variable %s: %w", variable.Name, err)
 				}
