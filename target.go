@@ -184,7 +184,7 @@ func (t *Target) InitializeVHD() error {
 		return fmt.Errorf("failed to get VHD module number: %w", err)
 	}
 
-	vhd, err := newVhdModule(t.client, *info, t.msysVersion)
+	vhd, err := newVhdModule(t.client, *info)
 	if err != nil {
 		return fmt.Errorf("failed to create VHD module: %w", err)
 	}
