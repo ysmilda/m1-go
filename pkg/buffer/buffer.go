@@ -79,6 +79,8 @@ func (b *Buffer) Available() int { return cap(b.buf) - len(b.buf) }
 // When used in writing the buffer it is undefined what the skipped bytes will be.
 func (b *Buffer) Skip(n uint) { b.off += int(n) }
 
+func (b *Buffer) Align4() { b.off = (b.off + 3) & 0xfffffffc }
+
 // Truncate discards all but the first n unread bytes from the buffer
 // but continues to use the same allocated storage.
 // It panics if n is negative or greater than the length of the buffer.
