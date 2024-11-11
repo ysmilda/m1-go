@@ -92,6 +92,7 @@ func (m *Module) ListVariables() ([]Variable, error) {
 func (m *Module) listVariables2() ([]Variable, error) {
 	const variablesPerCall = uint32(1000)
 	index := uint32(0)
+	path := m.name
 
 	result := make([]Variable, 0)
 
@@ -116,13 +117,13 @@ func (m *Module) listVariables2() ([]Variable, error) {
 			return nil, err
 		}
 
-		buf.Skip(4)
-		index, _ = buf.LittleEndian.ReadUint32()
-		buf.Skip(3 * 4)
-		count, _ := buf.LittleEndian.ReadUint32()
-		buf.Skip(1)
+		buf.Skip(4)                               // Number of PV (old, not used)
+		index, _ = buf.LittleEndian.ReadUint32()  // Next index
+		buf.Skip(3 * 4)                           // Spare
+		count, _ := buf.LittleEndian.ReadUint32() // Number of returned variables
 
 		for range count {
+			buf.Align4()
 			flags, _ := buf.LittleEndian.ReadUint16()
 			buf.Skip(2)
 			format, _ := buf.LittleEndian.ReadUint16()
@@ -131,9 +132,10 @@ func (m *Module) listVariables2() ([]Variable, error) {
 			name, _ := buf.ReadString(int(nameLength) + 1)
 
 			if flags == _SVI_FlagDirectory {
-				name = fmt.Sprintf("%s/%s/", m.name, name)
+				path = fmt.Sprintf("%s/%s", m.name, name)
+				continue
 			} else {
-				name = fmt.Sprintf("%s/%s", m.name, name)
+				name = fmt.Sprintf("%s/%s", path, name)
 			}
 
 			result = append(result, Variable{
@@ -190,7 +192,7 @@ func (m *Module) listVariables() ([]Variable, error) {
 			length, _ := buf.LittleEndian.ReadUint16()
 
 			result = append(result, Variable{
-				Name:   name,
+				Name:   "RES/" + name,
 				Format: format,
 				Length: length,
 			})
