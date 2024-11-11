@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+var defaultModules = map[string]struct{}{
+	"RES":  {},
+	"VHD":  {},
+	"INFO": {},
+}
+
 // Target represents a target device.
 // It's methods are convenience methods around the various modules on the target.
 // For more advanced usage, the modules can be used directly via the struct members.
@@ -57,15 +63,10 @@ func NewTarget(ip net.IP, protocol string, timeout time.Duration) (*Target, erro
 		return nil, err
 	}
 
-	infoModuleInfo, err := t.RES.GetModuleNumber("INFO")
+	err = t.initializeINFO()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get INFO module number: %w", err)
+		return nil, err
 	}
-	info, err := newInfoModule(client, *infoModuleInfo, t.msysVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create INFO module: %w", err)
-	}
-	t.INFO = info
 
 	return t, nil
 }
@@ -119,25 +120,16 @@ func (t *Target) Logout() error {
 	return t.RES.Logout(0)
 }
 
-func (t *Target) InitializeVHD() error {
-	// Create a session for the VHD module.
-	info, err := t.RES.GetModuleNumber("VHD")
-	if err != nil {
-		return fmt.Errorf("failed to get VHD module number: %w", err)
-	}
-
-	vhd, err := newVhdModule(t.client, *info, t.msysVersion)
-	if err != nil {
-		return fmt.Errorf("failed to create VHD module: %w", err)
-	}
-
-	t.VHD = vhd
-	return nil
-}
-
+// ConnectModule connects to a custom module on the target.
+// It returns an error if the module is a default module or if the module can't be connected to.
+// The module can be accessed via the Modules map on the target.
 func (t *Target) ConnectModule(moduleName string) error {
-	if moduleName == "RES" || moduleName == "VHD" || moduleName == "INFO" {
-		return errors.New("use the target struct members for the RES, VHD and INFO modules")
+	if _, ok := defaultModules[moduleName]; ok {
+		return errors.New("use the target struct members for the default modules")
+	}
+
+	if _, ok := t.Modules[moduleName]; ok {
+		return nil
 	}
 
 	info, err := t.RES.GetModuleNumber(moduleName)
@@ -182,5 +174,34 @@ func (t *Target) connect() error {
 		t.client.setAuth(settings.Auth, settings.AuthLen)
 	}
 
+	return nil
+}
+
+func (t *Target) InitializeVHD() error {
+	// Create a session for the VHD module.
+	info, err := t.RES.GetModuleNumber("VHD")
+	if err != nil {
+		return fmt.Errorf("failed to get VHD module number: %w", err)
+	}
+
+	vhd, err := newVhdModule(t.client, *info, t.msysVersion)
+	if err != nil {
+		return fmt.Errorf("failed to create VHD module: %w", err)
+	}
+
+	t.VHD = vhd
+	return nil
+}
+
+func (t *Target) initializeINFO() error {
+	infoModuleInfo, err := t.RES.GetModuleNumber("INFO")
+	if err != nil {
+		return fmt.Errorf("failed to get INFO module number: %w", err)
+	}
+	info, err := newInfoModule(t.client, *infoModuleInfo, t.msysVersion)
+	if err != nil {
+		return fmt.Errorf("failed to create INFO module: %w", err)
+	}
+	t.INFO = info
 	return nil
 }
