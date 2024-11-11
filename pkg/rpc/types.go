@@ -8,6 +8,9 @@ type String struct {
 }
 
 // NewString creates a new String with the given value and length.
+// The length is the number of bytes that should be written to the buffer.
+// If the value is longer than the length, it will be truncated.
+// If the value is shorter than the length, it will be padded with zeros.
 func NewString(value string, length int) String {
 	return String{
 		value:  value,
@@ -25,6 +28,7 @@ type Spare struct {
 }
 
 // NewSpare creates a new Spare with the given length.
+// The length is the number of bytes that should be written to the buffer.
 func NewSpare(length uint) Spare {
 	return Spare{
 		length: length,

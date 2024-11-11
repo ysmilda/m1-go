@@ -10,14 +10,14 @@ import (
 )
 
 const (
-	_RPC_CALL_INDICATOR    = 0
-	_RPC_REPLY_INDICATOR   = 1
-	_RPC_MESSAGE_VERSION   = 2
-	_MESSAGE_ACCEPTED      = 0
-	_PROGRAM_MISMATCH      = 2
-	_PROCEDURE_UNAVAILABLE = 3
-	_RPC_MISMATCH          = 0
-	_AUTH_ERROR            = 1
+	_RPC_CallIndicator        = 0
+	_RPC_ReplyIndicator       = 1
+	_RPC_MessageVersion       = 2
+	_RPC_MessageAccepted      = 0
+	_RPC_ProgramMismatch      = 2
+	_RPC_ProcedureUnavailable = 3
+	_RPC_Mismatch             = 0
+	_RPC_AuthError            = 1
 
 	bufferSize = 2048
 )
@@ -94,8 +94,8 @@ func CallWithoutRead(w io.Writer, header Header, data ...any) error {
 // This should always be the first thing written to the buffer.
 func writeHeader(body *buffer.Buffer, header Header) {
 	body.BigEndian.WriteUint32(header.xID)
-	body.BigEndian.WriteUint32(_RPC_CALL_INDICATOR)
-	body.BigEndian.WriteUint32(_RPC_MESSAGE_VERSION)
+	body.BigEndian.WriteUint32(_RPC_CallIndicator)
+	body.BigEndian.WriteUint32(_RPC_MessageVersion)
 	body.BigEndian.WriteUint32(header.Module)
 	body.BigEndian.WriteUint32(header.Version)
 	body.BigEndian.WriteUint32(header.Procedure)
@@ -112,7 +112,7 @@ func writeHeader(body *buffer.Buffer, header Header) {
 }
 
 // writeData writes data to the buffer.
-// The data can be of type uint8, uint16, uint32, uint64, []byte, string or rpc.String.
+// The data can be of type uint8, uint16, uint32, uint64, []byte, string, rpc.String, rpc.Spare.
 // This should always be called after writing the header.
 func writeData(body *buffer.Buffer, data ...any) {
 	for _, d := range data {
@@ -120,11 +120,11 @@ func writeData(body *buffer.Buffer, data ...any) {
 		case uint8:
 			_ = body.WriteByte(v)
 		case uint16:
-			body.BigEndian.WriteUint16(v)
+			body.LittleEndian.WriteUint16(v)
 		case uint32:
-			body.BigEndian.WriteUint32(v)
+			body.LittleEndian.WriteUint32(v)
 		case uint64:
-			body.BigEndian.WriteUint64(v)
+			body.LittleEndian.WriteUint64(v)
 		case []byte:
 			_, _ = body.Write(v)
 		case string:
@@ -133,7 +133,6 @@ func writeData(body *buffer.Buffer, data ...any) {
 			body.WriteStringTillLength(v.value, v.length)
 		case Spare:
 			_, _ = body.Write(make([]byte, v.length))
-
 		default:
 			panic("unsupported type")
 		}
@@ -144,27 +143,27 @@ func writeData(body *buffer.Buffer, data ...any) {
 // This should always be called after verifying the xID.
 // If the response is invalid, an error is returned.
 func verifyResponse(body *buffer.Buffer) error {
-	if code, _ := body.BigEndian.ReadUint32(); code != _RPC_REPLY_INDICATOR {
+	if code, _ := body.BigEndian.ReadUint32(); code != _RPC_ReplyIndicator {
 		fmt.Println("Invalid response", code)
 		return ErrNoReplyFrame
 	}
 
 	switch code, _ := body.BigEndian.ReadUint32(); code {
-	case _MESSAGE_ACCEPTED:
+	case _RPC_MessageAccepted:
 		body.Skip(8) // dummies
 
 		switch code, _ := body.BigEndian.ReadUint32(); code {
-		case _PROGRAM_MISMATCH:
+		case _RPC_ProgramMismatch:
 			return ErrProgramMismatch
-		case _PROCEDURE_UNAVAILABLE:
+		case _RPC_ProcedureUnavailable:
 			return ErrProcedureUnavailable
 		}
 
 	default:
 		switch code, _ := body.BigEndian.ReadUint32(); code {
-		case _RPC_MISMATCH:
+		case _RPC_Mismatch:
 			return ErrRPCMismatch
-		case _AUTH_ERROR:
+		case _RPC_AuthError:
 			return ErrAuthError
 		default:
 			return fmt.Errorf("%w: unknown error code (%d)", ErrInvalidResponse, code)

@@ -4,41 +4,44 @@ import (
 	"crypto/md5" //nolint:gosec
 	"encoding/binary"
 	"fmt"
-	"math"
 	"net"
 
 	"github.com/ysmilda/m1-go/pkg/rpc"
 )
 
 const (
-	_MODULE_RES = (0x20000000 | 0x00001000)
-
-	_VERSION_DEFAULT = 2
-	_VERSION_RES     = 3
-
-	_PROCEDURE_RES_LIST_MODULE_INFO  = 106
-	_PROCEDURE_RES_GET_MODULE_NUMBER = 112
-	_PROCEDURE_RES_SYSTEM_INFO       = 282
-	_PROCEDURE_RES_LOGIN             = 284
-	_PROCEDURE_RES_LOGOUT            = 286
-	_PROCEDURE_RES_XLOGIN            = 290
-	_PROCEDURE_RES_XLOGOUT           = 292
-	_PROCEDURE_RES_LOGIN2            = 304
-	_PROCEDURE_RES_OPEN              = 306
-	_PROCEDURE_RES_CLOSE             = 308
-	_PROCEDURE_RES_RENEW             = 310
-	_PROCEDURE_RES_EXT_PING          = 320
-	_PROCEDURE_RES_FLASH_LED         = 324
+	_RES_Procedure_ListModuleInfo  = 106
+	_RES_Procedure_GetModuleNumber = 112
+	_RES_Procedure_SystemInfo      = 282
+	_RES_Procedure_Login           = 284
+	_RES_Procedure_Logout          = 286
+	_RES_Procedure_XLogin          = 290
+	_RES_Procedure_XLogout         = 292
+	_RES_Procedure_Login2          = 304
+	_RES_Procedure_Open            = 306
+	_RES_Procedure_Close           = 308
+	_RES_Procedure_Renew           = 310
+	_RES_Procedure_ExtPing         = 320
+	_RES_Procedure_FlashLed        = 324
 )
 
-// ResModule wraps the RES module of the M1 controller.
-// It should not be created directly, but by using the RES field of the Target struct.
+// ResModule is a wrapper around the RES module of the M1 controller.
+// It provides functions to interact with the RES module.
 type ResModule struct {
-	client *client
+	*Module
 }
 
-func newResModule(client *client) *ResModule {
-	return &ResModule{client: client}
+func newResModule(client *client) (*ResModule, error) {
+	r, err := newModule(client, "RES", ModuleInfo{
+		ModuleNumber: (0x20000000 | 0x00001000),
+		UDPPort:      3000,
+		TCPPort:      3500,
+	}, Version{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create res module: %w", err)
+	}
+
+	return &ResModule{r}, nil
 }
 
 // FlashLed flashes the led of the target for approximately 5 seconds.
@@ -50,11 +53,11 @@ func (r *ResModule) FlashLed() error {
 	}
 
 	err = rpc.CallWithoutRead(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_DEFAULT,
-			Procedure: _PROCEDURE_RES_FLASH_LED,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionDefault,
+			Procedure: _RES_Procedure_FlashLed,
 			Auth:      r.client.auth,
 		},
 		rpc.NewString(resp.SerialNumber, _MIO_ProductNumberLength),
@@ -64,14 +67,14 @@ func (r *ResModule) FlashLed() error {
 }
 
 // ExtPing sends an extended ping to the target.
-func (r *ResModule) ExtPing(ipMask net.IP) (*ExtPingResponse, error) {
+func (r *ResModule) ExtPing(ipMask net.IP) (*ExtPing, error) {
 	mask := binary.LittleEndian.Uint32(ipMask.To4())
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_DEFAULT,
-			Procedure: _PROCEDURE_RES_EXT_PING,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionDefault,
+			Procedure: _RES_Procedure_ExtPing,
 			Auth:      r.client.auth,
 		},
 		mask, uint32(_RES_CompareEqual), uint32(_RES_ReplyWithIP), uint32(_RES_ReplyNormal), rpc.NewSpare(12),
@@ -80,7 +83,7 @@ func (r *ResModule) ExtPing(ipMask net.IP) (*ExtPingResponse, error) {
 		return nil, err
 	}
 
-	reply := &ExtPingResponse{}
+	reply := &ExtPing{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to ext ping: %w", err)
@@ -92,13 +95,13 @@ func (r *ResModule) ExtPing(ipMask net.IP) (*ExtPingResponse, error) {
 // GetModuleNumber returns the module number of the target.
 // The ModuleNumber contains the module number of the target application and it's ports.
 // These are necessary for making RPC calls against that module.
-func (r *ResModule) GetModuleNumber(module string) (*ModuleNumberResponse, error) {
+func (r *ResModule) GetModuleNumber(module string) (*ModuleInfo, error) {
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_DEFAULT,
-			Procedure: _PROCEDURE_RES_GET_MODULE_NUMBER,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionDefault,
+			Procedure: _RES_Procedure_GetModuleNumber,
 			Auth:      r.client.auth,
 		},
 		rpc.NewString(module, _ModuleNameLength),
@@ -107,7 +110,7 @@ func (r *ResModule) GetModuleNumber(module string) (*ModuleNumberResponse, error
 		return nil, err
 	}
 
-	reply := &ModuleNumberResponse{}
+	reply := &ModuleInfo{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to get module number: %w", err)
@@ -117,13 +120,13 @@ func (r *ResModule) GetModuleNumber(module string) (*ModuleNumberResponse, error
 }
 
 // GetSystemInfo returns the system information of the target.
-func (r *ResModule) GetSystemInfo() (*SystemInfoResponse, error) {
+func (r *ResModule) GetSystemInfo() (*SystemInfo, error) {
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_SYSTEM_INFO,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_SystemInfo,
 		},
 		uint32(0), uint32(0), uint32(0), rpc.NewString("M1Com", _ModuleNameLength),
 	)
@@ -131,7 +134,7 @@ func (r *ResModule) GetSystemInfo() (*SystemInfoResponse, error) {
 		return nil, err
 	}
 
-	reply := &SystemInfoResponse{}
+	reply := &SystemInfo{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to get system info: %w", err)
@@ -145,7 +148,7 @@ func (r *ResModule) GetSystemInfo() (*SystemInfoResponse, error) {
 // Deprecated: The loginChecker parameter indicates how the password is communicated. The value of this parameter
 // can be found in the GetSystemInfo response. The toolName parameter is the name of the tool that is logging in.
 // This may be left empty.
-func (r *ResModule) Login(user, password, toolName string, loginChecker bool) (*LoginResponse, error) {
+func (r *ResModule) Login(user, password, toolName string, loginChecker bool) (*Login, error) {
 	data := []any{}
 	data = append(data,
 		uint32(0), uint32(0), uint32(0), rpc.NewString(toolName, _ModuleNameLength), rpc.NewString(user, _UserNameLength),
@@ -159,11 +162,11 @@ func (r *ResModule) Login(user, password, toolName string, loginChecker bool) (*
 	}
 
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_LOGIN,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_Login,
 			Auth:      r.client.auth,
 		},
 		data...,
@@ -172,7 +175,7 @@ func (r *ResModule) Login(user, password, toolName string, loginChecker bool) (*
 		return nil, err
 	}
 
-	reply := &LoginResponse{}
+	reply := &Login{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to login: %w", err)
@@ -190,7 +193,7 @@ func (r *ResModule) Login(user, password, toolName string, loginChecker bool) (*
 // The toolName parameter is the name of the tool that is logging in. This may be left empty.
 func (r *ResModule) Login2(
 	user, password, toolName string, loginChecker bool, userParameter uint32,
-) (*Login2Response, error) {
+) (*Login2, error) {
 	data := []any{}
 	data = append(data,
 		userParameter, uint32(0), uint32(0),
@@ -207,11 +210,11 @@ func (r *ResModule) Login2(
 	data = append(data, uint32(0), uint32(0), uint32(0), uint32(0), uint32(0))
 
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_LOGIN2,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_Login2,
 			Auth:      r.client.auth,
 		},
 		data...,
@@ -220,7 +223,7 @@ func (r *ResModule) Login2(
 		return nil, err
 	}
 
-	reply := &Login2Response{}
+	reply := &Login2{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to login: %w", err)
@@ -234,11 +237,11 @@ func (r *ResModule) Login2(
 // Logout logs out the user from the target.
 func (r *ResModule) Logout(userParam uint32) error {
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_LOGOUT,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_Logout,
 			Auth:      r.client.auth,
 		},
 		userParam,
@@ -261,13 +264,13 @@ func (r *ResModule) Logout(userParam uint32) error {
 //
 // The userParameter parameter is a user-defined parameter that is passed to the target. The module parameter is the
 // name of the module that is used for the login. The user and password parameters are the credentials of the user.
-func (r *ResModule) ExtLogin(user, password, module string, userParam uint32) (*ExtLoginResponse, error) {
+func (r *ResModule) ExtLogin(user, password, module string, userParam uint32) (*ExtLogin, error) {
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_XLOGIN,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_XLogin,
 			Auth:      r.client.auth,
 		},
 		userParam, rpc.NewString(user, _UserNameLength),
@@ -277,7 +280,7 @@ func (r *ResModule) ExtLogin(user, password, module string, userParam uint32) (*
 		return nil, err
 	}
 
-	reply := &ExtLoginResponse{}
+	reply := &ExtLogin{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to ext login: %w", err)
@@ -298,11 +301,11 @@ func (r *ResModule) ExtLogout(user, password, module string, userParam uint32, u
 	}
 
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_XLOGOUT,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_XLogout,
 			Auth:      r.client.auth,
 		},
 		userParam, rpc.NewString(user, _UserNameLength),
@@ -313,7 +316,7 @@ func (r *ResModule) ExtLogout(user, password, module string, userParam uint32, u
 		return err
 	}
 
-	reply := &ExtLoginResponse{}
+	reply := &ExtLogin{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return fmt.Errorf("failed to ext logout: %w", err)
@@ -327,21 +330,21 @@ func (r *ResModule) ExtLogout(user, password, module string, userParam uint32, u
 // The function returns an OpenResponse that contains the response from the target. This response contains the
 // authentication data that is used for further communication with the target. It also contains the lifetime of the
 // session and the timeout of the session. If the session is not renewed within the timeout, the session is closed.
-func (r *ResModule) Open() (*OpenResponse, error) {
+func (r *ResModule) Open() (*Open, error) {
 	res, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_OPEN,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_Open,
 		},
-		uint32(0), uint32(0), uint32(math.MaxUint32), rpc.NewSpare(32*4),
+		uint32(0), uint32(0), uint32(0x7FFFFFFF), rpc.NewSpare(32*4),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	reply := &OpenResponse{}
+	reply := &Open{}
 	returnCode := reply.parse(res)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to open: %w", err)
@@ -353,11 +356,11 @@ func (r *ResModule) Open() (*OpenResponse, error) {
 // Close closes the connection to the RES module on the target.
 func (r *ResModule) Close() error {
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_CLOSE,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_Close,
 			Auth:      r.client.auth,
 		},
 	)
@@ -378,13 +381,13 @@ func (r *ResModule) Close() error {
 // The function returns a RenewResponse that contains the response from the target. This response contains the
 // authentication data that is used for further communication with the target. It also contains the state of the
 // application and the system.
-func (r *ResModule) Renew() (*RenewResponse, error) {
+func (r *ResModule) Renew() (*Renew, error) {
 	buf, err := rpc.Call(
-		r.client,
+		r.client.getConnection(r.info),
 		rpc.Header{
-			Module:    _MODULE_RES,
-			Version:   _VERSION_RES,
-			Procedure: _PROCEDURE_RES_RENEW,
+			Module:    r.info.ModuleNumber,
+			Version:   _RPC_VersionRES,
+			Procedure: _RES_Procedure_Renew,
 			Auth:      r.client.auth,
 		},
 		// This indicates we want to renew the connection.
@@ -396,7 +399,7 @@ func (r *ResModule) Renew() (*RenewResponse, error) {
 		return nil, err
 	}
 
-	reply := &RenewResponse{}
+	reply := &Renew{}
 	returnCode := reply.parse(buf)
 	if err := parseReturnCode(returnCode); err != nil {
 		return nil, fmt.Errorf("failed to renew: %w", err)
@@ -414,16 +417,16 @@ func (r *ResModule) ListModules() ([]string, error) {
 	// The target has a limit of 30 modules per call, so we need to call the procedure multiple times.
 	// An arbitray limit of 5 calls is set here to prevent infinite loops. It seems unlikely that a
 	// target would have more than 150 modules.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		start := moduleCount
 		end := start + modulesPerCall - 1
 
 		buf, err := rpc.Call(
-			r.client,
+			r.client.getConnection(r.info),
 			rpc.Header{
-				Module:    _MODULE_RES,
-				Version:   _VERSION_DEFAULT,
-				Procedure: _PROCEDURE_RES_LIST_MODULE_INFO,
+				Module:    r.info.ModuleNumber,
+				Version:   _RPC_VersionDefault,
+				Procedure: _RES_Procedure_ListModuleInfo,
 				Auth:      r.client.auth,
 			},
 			start, end,
