@@ -115,6 +115,15 @@ func (s Variable) GetGoDataType() any { //nolint:gocyclo
 	}
 }
 
+func (s Variable) String() string {
+	t := s.GetGoDataType()
+
+	if s.IsBlock() {
+		return fmt.Sprintf("%s: %T (%d)", s.Name, t, s.GetArrayLength())
+	}
+	return fmt.Sprintf("%s: %T", s.Name, t)
+}
+
 func (s Variable) getBufferLength() int {
 	return int(s.Length) + 3&_Align
 }
