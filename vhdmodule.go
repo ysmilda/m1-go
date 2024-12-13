@@ -1,43 +1,25 @@
 package m1
 
 import (
+	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"strings"
 	"time"
 
-	"github.com/ysmilda/m1-go/pkg/buffer"
-	"github.com/ysmilda/m1-go/pkg/rpc"
-)
-
-const (
-	_VHD_UserNameLength = ((40 + 1 + 3) & _Align)
-
-	_VHD_Procedure_StartSession   = 102
-	_VHD_Procedure_StopSession    = 104
-	_VHD_Procedure_ResetSession   = 106
-	_VHD_Procedure_GetSessionInfo = 108
-	_VHD_Procedure_GetValue       = 110
-	_VHD_Procedure_SetValue       = 112
-	_VHD_Procedure_GetXAddress    = 134
-
-	_SVI_Procedure_GetMultiBlock = 10018
-	_SVI_Procedure_SetMultiBlock = 10020
-
-	_VHD_SessionMode_Polling    = 0x0000
-	_VHD_ListNoSort             = 0x0000
-	_VHD_ListExtendedError      = 0x0010
-	_VHD_ListMultiBlockTransfer = 0x0020
-
-	_VHD_SingleRtype = 7
-	_VHD_SingleBtype = 4
+	"github.com/ysmilda/m1-go/internals/client"
+	"github.com/ysmilda/m1-go/internals/unpack"
+	"github.com/ysmilda/m1-go/modules/m1errors"
+	"github.com/ysmilda/m1-go/modules/res"
+	"github.com/ysmilda/m1-go/modules/vhd"
 )
 
 var ErrFailedToInitializeVariables = fmt.Errorf("failed to initialize variables")
 
 type VhdModule struct {
-	client *client
-	info   ModuleInfo
+	client *client.Client
+	info   res.ModuleNumber
 
 	sessionName string
 	userID      uint32
@@ -45,14 +27,14 @@ type VhdModule struct {
 
 // newVhdModule creates a new session for the VHD module. Make sure to have logged in on the client before calling
 // this function. Make sure to close the module when it is no longer needed.
-func newVhdModule(client *client, info ModuleInfo) (*VhdModule, error) {
+func newVhdModule(client *client.Client, info res.ModuleNumber) (*VhdModule, error) {
 	vhd := &VhdModule{
 		client:      client,
 		info:        info,
 		sessionName: fmt.Sprintf("m1c-%d-%d", rand.Uint32()%1000, time.Now().UnixNano()),
 	}
 
-	err := vhd.client.addConnection(info)
+	err := vhd.client.AddConnection(info.ModuleNumber, info.UDPPort, info.TCPPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add connection: %w", err)
 	}
@@ -81,7 +63,6 @@ func newVhdModule(client *client, info ModuleInfo) (*VhdModule, error) {
 	return vhd, nil
 }
 
-// Close closes the session on the target. This should be called when the module is no longer needed.
 func (v *VhdModule) Close() error {
 	if v.userID != 0 {
 		err := v.StopSession()
@@ -92,107 +73,63 @@ func (v *VhdModule) Close() error {
 	return nil
 }
 
-// StartSession starts a new session on the target. This is called automatically when the module is created.
 func (v *VhdModule) StartSession() error {
-	delay := 0
+	procedure := vhd.Procedures.StartSession(vhd.StartSessionCall{
+		UserName:    v.sessionName,
+		DelayTime:   0,
+		SessionMode: vhd.SessionModeNormal,
+	})
 
-	buf, err := rpc.Call(
-		v.client.getConnection(v.info),
-		rpc.Header{
-			Module:    v.info.ModuleNumber,
-			Version:   _RPC_VersionDefault,
-			Procedure: _VHD_Procedure_StartSession,
-			Auth:      v.client.auth,
-		},
-		rpc.NewString(v.sessionName, _VHD_UserNameLength), uint32(delay), uint32(_VHD_SessionMode_Polling),
-	)
+	err := callProcedure(v.client, v.info, procedure)
 	if err != nil {
-		return err
-	}
-
-	returnCode, _ := buf.LittleEndian.ReadUint32()
-	if err := parseReturnCode(returnCode); err != nil {
 		return fmt.Errorf("failed to start session: %w", err)
 	}
 
-	v.userID, _ = buf.LittleEndian.ReadUint32()
+	v.userID = procedure.Reply.UserID
 	return nil
 }
 
-// StopSession stops the current session on the target. This is called automatically when the module is closed.
 func (v *VhdModule) StopSession() error {
-	buf, err := rpc.Call(
-		v.client.getConnection(v.info),
-		rpc.Header{
-			Module:    v.info.ModuleNumber,
-			Version:   _RPC_VersionDefault,
-			Procedure: _VHD_Procedure_StopSession,
-			Auth:      v.client.auth,
-		},
-		v.userID,
-	)
-	if err != nil {
-		return err
-	}
+	procedure := vhd.Procedures.StopSession(vhd.StopSessionCall{
+		UserID: v.userID,
+	})
 
-	returnCode, _ := buf.LittleEndian.ReadUint32()
-	if err := parseReturnCode(returnCode); err != nil {
+	err := callProcedure(v.client, v.info, procedure)
+	if err != nil {
 		return fmt.Errorf("failed to stop session: %w", err)
 	}
 
 	v.userID = 0
-
 	return nil
 }
 
-// ResetSession resets the current session on the target.
 func (v *VhdModule) ResetSession(userID uint32) error {
-	buf, err := rpc.Call(
-		v.client.getConnection(v.info),
-		rpc.Header{
-			Module:    v.info.ModuleNumber,
-			Version:   _RPC_VersionDefault,
-			Procedure: _VHD_Procedure_ResetSession,
-			Auth:      v.client.auth,
-		},
-		userID,
-	)
-	if err != nil {
-		return err
-	}
+	procedure := vhd.Procedures.ResetSession(vhd.ResetSessionCall{
+		UserID: userID,
+	})
 
-	returnCode, _ := buf.LittleEndian.ReadUint32()
-	if err := parseReturnCode(returnCode); err != nil {
+	err := callProcedure(v.client, v.info, procedure)
+	if err != nil {
 		return fmt.Errorf("failed to reset session: %w", err)
 	}
 
-	v.userID = userID
+	v.userID = 0
 	return nil
 }
 
 // GetSessionInfo returns the information about the current session on the target.
-func (v *VhdModule) GetSessionInfo() (*SessionInfo, error) {
-	buf, err := rpc.Call(
-		v.client.getConnection(v.info),
-		rpc.Header{
-			Module:    v.info.ModuleNumber,
-			Version:   _RPC_VersionDefault,
-			Procedure: _VHD_Procedure_GetSessionInfo,
-			Auth:      v.client.auth,
-		},
-		rpc.NewSpare(4), rpc.NewString(v.sessionName, _VHD_UserNameLength),
-	)
-	if err != nil {
-		return nil, err
-	}
+func (v *VhdModule) GetSessionInfo() (*vhd.SessionInfo, error) {
+	procedure := vhd.Procedures.GetSessionInfo(vhd.GetSessionInfoCall{
+		UserID:   v.userID,
+		UserName: v.sessionName,
+	})
 
-	reply := &SessionInfo{}
-	returnCode := reply.parse(buf)
-	if err := parseReturnCode(returnCode); err != nil {
+	err := callProcedure(v.client, v.info, procedure)
+	if err != nil {
 		return nil, fmt.Errorf("failed to get session info: %w", err)
 	}
 
-	return reply, nil
+	return &procedure.Reply.SessionInfo, nil
 }
 
 // InitializeVariables initializes the variables on the target. It returns the number of variables that were
@@ -209,59 +146,35 @@ func (v *VhdModule) InitializeVariables(variables []*Variable) (initializedVaria
 	}()
 
 	calls := v.splitInitialisationCall(variables)
+	index := 0
 
 	for _, call := range calls {
-		data := []any{v.userID, uint32(len(call))}
-		for _, v := range call {
-			data = append(data, rpc.NewString(v.Name, len(v.Name)+1))
-		}
-
-		// We to the buffer after we have done our checks, so we would otherwise miss the last variable.
-
-		buf, err := rpc.Call(
-			v.client.getConnection(v.info),
-			rpc.Header{
-				Module:    v.info.ModuleNumber,
-				Version:   _RPC_VersionDefault,
-				Procedure: _VHD_Procedure_GetXAddress,
-				Auth:      v.client.auth,
-			},
-			data...,
-		)
+		procedure := vhd.Procedures.GetXAddress(call)
+		err := callProcedure(v.client, v.info, procedure)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("failed to initialize variables: %w", err)
 		}
+		r := procedure.Reply
 
-		// Verify and parse the response for the variables in the buffer.
-		returnCode, _ := buf.LittleEndian.ReadUint32()
-		if err := parseReturnCode(returnCode); err != nil {
-			// TODO: Set the variables in the call to an error state? That way we can see which variables failed.
-			return 0, fmt.Errorf("%w: %w", ErrFailedToInitializeVariables, err)
-		}
+		for _, address := range r.Addresses {
+			variables[index].Variable = address
 
-		count, _ := buf.LittleEndian.ReadUint32()
-		if count != uint32(len(call)) {
-			return 0, fmt.Errorf("%w: expected %d variables, got %d", ErrFailedToInitializeVariables, len(call), count)
-		}
-
-		for _, v := range call {
-			v.infoFromBuffer(buf)
-
-			if int64(v.Address) == -1 {
-				v.Error = fmt.Errorf("%w: not found on target", ErrFailedToInitializeVariables)
-			} else if v.Length == 0 {
-				v.Error = fmt.Errorf("%w: has a length of 0", ErrFailedToInitializeVariables)
+			if int64(variables[index].Address) == -1 {
+				variables[index].Error = fmt.Errorf("%w: not found on target", ErrFailedToInitializeVariables)
+			} else if variables[index].Length == 0 {
+				variables[index].Error = fmt.Errorf("%w: has a length of 0", ErrFailedToInitializeVariables)
 			}
 
-			if v.Error != nil {
-				v.Address = 0
-				v.Format = 0
-				v.Length = 0
+			if variables[index].Error != nil {
+				variables[index].Address = 0
+				variables[index].Format = 0
+				variables[index].Length = 0
 			} else {
-				v.Error = nil
-				v.initialized = true
+				variables[index].Error = nil
+				variables[index].initialized = true
 				initializedVariables++
 			}
+			index++
 		}
 	}
 
@@ -288,226 +201,254 @@ func (v *VhdModule) ReadVariable(variable *Variable) (any, error) {
 // equal the number of variables, scan the variables for errors.
 func (v *VhdModule) ReadVariables(variables []*Variable) (map[*Variable]any, error) {
 	// Split the variables into separate calls based on the maximum call length.
-	calls := v.splitReadCall(variables)
-	result := make(map[*Variable]any)
+
+	var (
+		addressType uint32
+		varOffset   uint32
+
+		calls  = v.splitReadCall(variables)
+		result = make(map[*Variable]any)
+	)
 
 	for _, call := range calls {
-		data := []any{v.userID, uint32(_VHD_ListNoSort), uint32(len(call.data))}
-		for _, variable := range call.data {
-			if variable.IsBlock() {
-				data = append(data, uint32(_VHD_SingleRtype), variable.Length)
-			} else {
-				data = append(data, uint32(_VHD_SingleBtype))
-			}
-			data = append(data, variable.Address)
-		}
-
-		buf, err := rpc.Call(
-			v.client.getConnection(v.info),
-			rpc.Header{
-				Module:    v.info.ModuleNumber,
-				Version:   _RPC_VersionDefault,
-				Procedure: _VHD_Procedure_GetValue,
-				Auth:      v.client.auth,
-			},
-			data...,
-		)
+		procedure := vhd.Procedures.GetValue(call)
+		err := callProcedure(v.client, v.info, procedure)
 		if err != nil {
-			return nil, err
+			if e, ok := err.(m1errors.Error); !ok ||
+				// Check if the error indicates that this should have been a multiblock read.
+				// If that is the case we upgrade the request below.
+				!(e.VHD() && e.SVI() && errors.Is(e.Description, m1errors.ErrSignalisingMBTransferInError)) {
+				{
+					return nil, fmt.Errorf("failed to read variables: %w", err)
+				}
+			}
 		}
 
-		// In this case the return code indicates the type of reponse we got.
-		returnCode, _ := buf.LittleEndian.ReadUint32()
-		if returnCode == (_SVI_Error_MultiBlockTransfer | _SOURCE_VHD) { // Should have been a Multiblock read
-			buf.Skip(2 * 4) // Ignore the sub return code and the spare
-			bufferID, _ := buf.LittleEndian.ReadUint32()
-			buf.Skip(4) // Ignore the spare
+		if err != nil { // Upgrade the request to multiblock
+			// The response should now be parsed as a GetXValue response.
+			// TODO: Figure out how this should be done.
 
-			value, err := v.readMultiBlock(variables, bufferID)
+			return nil, fmt.Errorf("multiblock read not yet implemented: %w", err)
+		}
+
+		for range procedure.Reply.NumberOfElements {
+			// variable := variables[varOffset]
+			varOffset++
+
+			n, err := unpack.BytesToField(&addressType, procedure.Reply.Elements, binary.LittleEndian, 4)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read variables: %w", err)
 			}
-			result[variables[0]] = value
-		} else if err := parseReturnCode(returnCode); err != nil { // Actual error
-			return nil, fmt.Errorf("failed to read variables: %w", err)
-		}
+			procedure.Reply.Elements = procedure.Reply.Elements[n:]
 
-		count, _ := buf.LittleEndian.ReadUint32()
-		if count != uint32(len(call.data)) {
-			return nil, fmt.Errorf("failed to read variables: expected %d variables, got %d", len(call.data), count)
-		}
+			// Parse reply based on the address type.
+			switch vhd.AddressType(addressType) {
+			case vhd.AddressTypeSVISingleBaseType:
+				element := vhd.ElementAddressSVISingleBaseType{}
+				n, err := unpack.BytesToField(&element.Address, procedure.Reply.Elements, binary.LittleEndian, 1)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read variables: %w", err)
+				}
+				procedure.Reply.Elements = procedure.Reply.Elements[n:]
+			case vhd.AddressTypeSVIListBaseType:
+			case vhd.AddressTypeSVIConsecutiveBaseType:
+			case vhd.AddressTypeSVISingleCompoundType:
+			case vhd.AddressTypeIndexBaseType:
+			case vhd.AddressTypeIndexListBaseType:
+			case vhd.AddressTypeIndexConsecutiveBaseType:
+			case vhd.AddressTypeIndexSingleCompoundType:
 
-		for _, variable := range call.data {
-			value, err := v.parseVariable(variable, buf)
-			if err != nil {
-				variable.Error = fmt.Errorf("failed to read: %w", err)
-				continue
 			}
 
-			result[variable] = value
-		}
-	}
+			// value, err := v.parseVariable(variable, buf)
+			// if err != nil {
+			// 	variable.Error = fmt.Errorf("failed to read: %w", err)
+			// 	continue
+			// }
 
+			// result[variable] = value
+		}
+
+	}
 	return result, nil
 }
 
-// WriteVariable is a wrapper around WriteVariables that writes a single variable to the target. It returns an error if
-// the variable could not be written.
-func (v *VhdModule) WriteVariable(variable *Variable, value any) error {
-	return v.WriteVariables(map[*Variable]any{variable: value})
-}
+// // WriteVariable is a wrapper around WriteVariables that writes a single variable to the target. It returns an error if
+// // the variable could not be written.
+// func (v *VhdModule) WriteVariable(variable *Variable, value any) error {
+// 	return v.WriteVariables(map[*Variable]any{variable: value})
+// }
 
-// WriteVariables writes the given variables to the target. It returns an error if the variables could not be written.
-// The type of the value must match the type of the variable. If an error occurs during the communication with the
-// target it will return an error and stop the processing.
-func (v *VhdModule) WriteVariables(variables map[*Variable]any) error {
-	calls := v.splitWriteCalls(variables)
+// // WriteVariables writes the given variables to the target. It returns an error if the variables could not be written.
+// // The type of the value must match the type of the variable. If an error occurs during the communication with the
+// // target it will return an error and stop the processing.
+// func (v *VhdModule) WriteVariables(variables map[*Variable]any) error {
+// 	calls := v.splitWriteCalls(variables)
 
-	for _, call := range calls {
-		if call.isMultiBlock {
-			if len(call.data) != 1 {
-				return fmt.Errorf("failed to write multiblock: expected 1 variable, got %d", len(call.data))
-			}
+// 	for _, call := range calls {
+// 		if call.isMultiBlock {
+// 			if len(call.data) != 1 {
+// 				return fmt.Errorf("failed to write multiblock: expected 1 variable, got %d", len(call.data))
+// 			}
 
-			variable := call.data[0].variable
-			buf, err := rpc.Call(
-				v.client.getConnection(v.info),
-				rpc.Header{
-					Module:    v.info.ModuleNumber,
-					Version:   _RPC_VersionDefault,
-					Procedure: _VHD_Procedure_SetValue,
-					Auth:      v.client.auth,
-				},
-				v.userID, uint32(_VHD_ListMultiBlockTransfer), uint32(0), variable.getBufferLength()+16, uint32(1),
-			)
-			if err != nil {
-				return err
-			}
+// 			variable := call.data[0].variable
+// 			buf, err := rpc.Call(
+// 				v.client.getConnection(v.info),
+// 				rpc.Header{
+// 					Module:    v.info.ModuleNumber,
+// 					Version:   rpc.VersionDefault,
+// 					Procedure: _VHD_Procedure_SetValue,
+// 					Auth:      v.client.auth,
+// 				},
+// 				v.userID, uint32(_VHD_ListMultiBlockTransfer), uint32(0), variable.getBufferLength()+16, uint32(1),
+// 			)
+// 			if err != nil {
+// 				return err
+// 			}
 
-			returnCode, _ := buf.LittleEndian.ReadUint32()
-			if returnCode == (_SOURCE_VHD | _ERROR_MBTRANS) {
-				bufferID, _ := buf.LittleEndian.ReadUint32()
-				err := v.writeMultiBlockValue(variable, call.data[0].value, bufferID)
-				if err != nil {
-					return fmt.Errorf("failed to write multiblock: %w", err)
-				}
-			}
+// 			returnCode, _ := buf.LittleEndian.ReadUint32()
+// 			if returnCode == (msys.SourceVHD | msys.ErrorMBTRANS) {
+// 				bufferID, _ := buf.LittleEndian.ReadUint32()
+// 				err := v.writeMultiBlockValue(variable, call.data[0].value, bufferID)
+// 				if err != nil {
+// 					return fmt.Errorf("failed to write multiblock: %w", err)
+// 				}
+// 			}
 
-			if err := parseReturnCode(returnCode); err != nil {
-				return fmt.Errorf("failed to write multiblock: %w", err)
-			}
-		} else {
-			data := []any{v.userID, uint32(_VHD_ListNoSort | _VHD_ListExtendedError), uint32(len(call.data))}
-			for _, entry := range call.data {
-				variable := entry.variable
-				if variable.IsBlock() {
-					data = append(data, uint32(_VHD_SingleRtype), variable.Length)
-				} else {
-					data = append(data, uint32(_VHD_SingleBtype))
-				}
-				data = append(data, variable.Address)
-				buffer, err := variable.valueToBuffer(entry.value)
-				if err != nil {
-					return fmt.Errorf("failed to write variable %s: %w", variable.Name, err)
-				}
-				data = append(data, buffer)
-			}
+// 			if err := msys.ParseReturnCode(returnCode); err != nil {
+// 				return fmt.Errorf("failed to write multiblock: %w", err)
+// 			}
+// 		} else {
+// 			data := []any{v.userID, uint32(_VHD_ListNoSort | _VHD_ListExtendedError), uint32(len(call.data))}
+// 			for _, entry := range call.data {
+// 				variable := entry.variable
+// 				if variable.IsBlock() {
+// 					data = append(data, uint32(_VHD_SingleRtype), variable.Length)
+// 				} else {
+// 					data = append(data, uint32(_VHD_SingleBtype))
+// 				}
+// 				data = append(data, variable.Address)
+// 				buffer, err := variable.valueToBuffer(entry.value)
+// 				if err != nil {
+// 					return fmt.Errorf("failed to write variable %s: %w", variable.Name, err)
+// 				}
+// 				data = append(data, buffer)
+// 			}
 
-			buf, err := rpc.Call(
-				v.client.getConnection(v.info),
-				rpc.Header{
-					Module:    v.info.ModuleNumber,
-					Version:   _RPC_VersionDefault,
-					Procedure: _VHD_Procedure_SetValue,
-					Auth:      v.client.auth,
-				},
-				data...,
-			)
-			if err != nil {
-				return err
-			}
+// 			buf, err := rpc.Call(
+// 				v.client.getConnection(v.info),
+// 				rpc.Header{
+// 					Module:    v.info.ModuleNumber,
+// 					Version:   rpc.VersionDefault,
+// 					Procedure: _VHD_Procedure_SetValue,
+// 					Auth:      v.client.auth,
+// 				},
+// 				data...,
+// 			)
+// 			if err != nil {
+// 				return err
+// 			}
 
-			returnCode, _ := buf.LittleEndian.ReadUint32()
-			switch returnCode {
+// 			returnCode, _ := buf.LittleEndian.ReadUint32()
+// 			switch returnCode {
 
-			// Read back the invalid addresses
-			case (_SOURCE_VHD | _ERROR_BADADDR):
-				count, _ := buf.LittleEndian.ReadUint32()
-				for range count {
-					address, _ := buf.LittleEndian.ReadUint64()
-					for _, entry := range call.data {
-						if entry.variable.Address == address {
-							entry.variable.Error = fmt.Errorf("failed to write variable: invalid address")
-						}
-					}
-				}
+// 			// Read back the invalid addresses
+// 			case (msys.SourceVHD | msys.ErrorBADADDR):
+// 				count, _ := buf.LittleEndian.ReadUint32()
+// 				for range count {
+// 					address, _ := buf.LittleEndian.ReadUint64()
+// 					for _, entry := range call.data {
+// 						if entry.variable.Address == address {
+// 							entry.variable.Error = fmt.Errorf("failed to write variable: invalid address")
+// 						}
+// 					}
+// 				}
 
-			case (_SOURCE_VHD | _ERROR_XERR):
-				count, _ := buf.LittleEndian.ReadUint32()
-				for range count {
-					if t, _ := buf.LittleEndian.ReadUint32(); t == _VHD_SingleRtype {
-						buf.Skip(4)
-					}
+// 			case (msys.SourceVHD | msys.ErrorXERR):
+// 				count, _ := buf.LittleEndian.ReadUint32()
+// 				for range count {
+// 					if t, _ := buf.LittleEndian.ReadUint32(); t == _VHD_SingleRtype {
+// 						buf.Skip(4)
+// 					}
 
-					index, _ := buf.LittleEndian.ReadUint32()
-					err, _ := buf.LittleEndian.ReadUint32()
+// 					index, _ := buf.LittleEndian.ReadUint32()
+// 					err, _ := buf.LittleEndian.ReadUint32()
 
-					call.data[index].variable.Error = fmt.Errorf("failed to write variable: %w", parseReturnCode(err))
-				}
+// 					call.data[index].variable.Error = fmt.Errorf("failed to write variable: %w", msys.ParseReturnCode(err))
+// 				}
 
-			case (_SOURCE_VHD | _ERROR_NOWRITE):
-				return fmt.Errorf("failed to write variables: write access denied")
-			}
-		}
-	}
+// 			case (msys.SourceVHD | msys.ErrorNOWRITE):
+// 				return fmt.Errorf("failed to write variables: write access denied")
+// 			}
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // splitInitialisationCall splits the variables into separate calls based on the maximum call length for the
 // target.
-func (v *VhdModule) splitInitialisationCall(variables []*Variable) [][]*Variable {
-	output := [][]*Variable{}
-	buffer := []*Variable{}
+func (v *VhdModule) splitInitialisationCall(variables []*Variable) []vhd.GetXAddressCall {
+	output := []vhd.GetXAddressCall{}
+	paths := []string{}
 
 	length := 8
 	count := 0
-	maxCallLength := v.client.getMaximumCallLength()
+	maxCallLength := v.client.GetMaximumCallLength()
 	maxCount := (maxCallLength - 8) / 12
+
+	addPathsToOutput := func() {
+		output = append(output, vhd.GetXAddressCall{
+			UserID:        v.userID,
+			NumberOfPaths: uint32(len(paths)),
+			Paths:         paths,
+		})
+
+		paths = []string{}
+	}
 
 	for _, variable := range variables {
 		count++
 		length += len(variable.Name) + 1
 
 		if count == maxCount || length >= maxCallLength {
-			output = append(output, buffer)
-			buffer = []*Variable{}
+			addPathsToOutput()
 			count = 0
 			length = 8 + len(variable.Name) + 1
 		}
 
-		buffer = append(buffer, variable)
+		paths = append(paths, variable.Name)
 	}
 
-	if len(buffer) > 0 {
-		output = append(output, buffer)
+	if len(paths) > 0 {
+		addPathsToOutput()
 	}
 
 	return output
 }
 
-type readCall struct {
-	data []*Variable
-}
-
 // splitReadCall splits the variables into separate calls based on the maximum call length for the target.
-func (v *VhdModule) splitReadCall(variables []*Variable) []readCall {
-	maxCallLength := v.client.getMaximumCallLength()
+func (v *VhdModule) splitReadCall(variables []*Variable) []vhd.GetValueCall {
+	maxCallLength := v.client.GetMaximumCallLength()
 	callLength := 12 // UserID + report mode + Number of elements (3 x sizeof(uint32))
 	replyLength := 8 // Return code + number of elements (2 x sizeof(uint32))
 
-	output := []readCall{}
-	buffer := readCall{}
+	output := []vhd.GetValueCall{}
+	elements := []vhd.ElementAddress{}
+
+	addElementsToOutput := func() {
+		buf, err := unpack.Pack(binary.LittleEndian, elements)
+		if err != nil {
+			panic(fmt.Errorf("failed to pack elements: %w", err))
+		}
+		output = append(output, vhd.GetValueCall{
+			UserID:           v.userID,
+			ReportMode:       vhd.ReportModeNoSort,
+			NumberOfElements: uint32(len(elements)),
+			Elements:         buf,
+		})
+		elements = []vhd.ElementAddress{}
+	}
 
 	for _, variable := range variables {
 		if !variable.IsInitialized() {
@@ -528,232 +469,243 @@ func (v *VhdModule) splitReadCall(variables []*Variable) []readCall {
 		}
 
 		if callLength+variableCallLength > maxCallLength || replyLength+variableReplyLength > maxCallLength {
-			output = append(output, buffer)
-			buffer = readCall{}
+			addElementsToOutput()
 			callLength = 12
 			replyLength = 8
 		}
 
-		buffer.data = append(buffer.data, variable)
-		callLength += variableCallLength
-		replyLength += variableReplyLength
-	}
-
-	if len(buffer.data) > 0 {
-		output = append(output, buffer)
-	}
-
-	return output
-}
-
-type writeCall struct {
-	data []struct {
-		variable *Variable
-		value    any
-	}
-	isMultiBlock bool
-}
-
-func (v *VhdModule) splitWriteCalls(variables map[*Variable]any) []writeCall {
-	maxCallLength := v.client.getMaximumCallLength()
-	callLength := 12 // UserID + report mode + Number of elements (3 x sizeof(uint32))
-	replyLength := 8 // Return code + number of elements (2 x sizeof(uint32))
-
-	output := []writeCall{}
-	buffer := writeCall{}
-
-	for variable, value := range variables {
-		if !variable.IsInitialized() {
-			continue
+		element := vhd.ElementAddress{
+			Type:    vhd.AddressTypeSVISingleBaseType,
+			Element: vhd.ElementAddressSVISingleBaseType{Address: variable.Address},
 		}
-
-		if !variable.IsWritable() {
-			variable.Error = fmt.Errorf("variable is not writable")
-			continue
-		}
-
-		var (
-			variableCallLength  int
-			variableReplyLength int
-		)
-
 		if variable.IsBlock() {
-			variableCallLength = 16  // Type + length/elements + address(2)
-			variableReplyLength = 12 // Type + length/elements + address
-		} else {
-			variableCallLength = 12 // Type + address(2)
-			variableReplyLength = 8 // Type + index
+			element.Type = vhd.AddressTypeSVISingleCompoundType
+			element.Element = vhd.ElementAddressSVISingleCompoundType{
+				Address:       variable.Address,
+				ElementLength: uint32(variable.Length),
+			}
 		}
-
-		variableCallLength += variable.getBufferLength()
-
-		if callLength+variableCallLength > maxCallLength || replyLength+variableReplyLength > maxCallLength {
-			output = append(output, buffer)
-			buffer = writeCall{}
-			callLength = 12
-			replyLength = 8
-		}
-
-		buffer.data = append(buffer.data, struct {
-			variable *Variable
-			value    any
-		}{variable, value})
-
-		if variableCallLength+12 > maxCallLength {
-			buffer.isMultiBlock = true
-		}
+		elements = append(elements, element)
 
 		callLength += variableCallLength
 		replyLength += variableReplyLength
-
 	}
 
-	if len(buffer.data) > 0 {
-		output = append(output, buffer)
+	if len(elements) > 0 {
+		addElementsToOutput()
 	}
 
 	return output
 }
 
-// readMultiBlock reads a multiblock from the target. It returns an error if the multiblock could not be read.
-func (v *VhdModule) readMultiBlock(variables []*Variable, bufferID uint32) (any, error) {
-	if len(variables) != 1 {
-		return nil, fmt.Errorf("failed to read multiblock: expected 1 variable, got %d", len(variables))
-	}
+// type writeCall struct {
+// 	data []struct {
+// 		variable *Variable
+// 		value    any
+// 	}
+// 	isMultiBlock bool
+// }
 
-	variable := variables[0]
+// func (v *VhdModule) splitWriteCalls(variables map[*Variable]any) []writeCall {
+// 	maxCallLength := v.client.getMaximumCallLength()
+// 	callLength := 12 // UserID + report mode + Number of elements (3 x sizeof(uint32))
+// 	replyLength := 8 // Return code + number of elements (2 x sizeof(uint32))
 
-	// The first variable in the buffer is the number of elements.
-	offset := uint32(0)
-	blockLength := uint32(1)
-	headerRead := false
-	buffer := make([]byte, 0, v.client.maxCallLength)
+// 	output := []writeCall{}
+// 	buffer := writeCall{}
 
-	for blockLength != 0 {
-		res, err := rpc.Call(
-			v.client.getConnection(v.info),
-			rpc.Header{
-				Module:    v.info.ModuleNumber,
-				Version:   _RPC_VersionDefault,
-				Procedure: _SVI_Procedure_GetMultiBlock,
-				Auth:      v.client.auth,
-			},
-			offset, bufferID,
-		)
-		if err != nil {
-			return nil, err
-		}
+// 	for variable, value := range variables {
+// 		if !variable.IsInitialized() {
+// 			continue
+// 		}
 
-		returnCode, _ := res.LittleEndian.ReadUint32()
-		if err := parseReturnCode(returnCode); err != nil {
-			return nil, fmt.Errorf("failed to read multiblock: %w", err)
-		}
+// 		if !variable.IsWritable() {
+// 			variable.Error = fmt.Errorf("variable is not writable")
+// 			continue
+// 		}
 
-		offset, _ = res.LittleEndian.ReadUint32()
-		blockLength, _ = res.LittleEndian.ReadUint32()
-		res.Skip(4) // Skip the number of elements
+// 		var (
+// 			variableCallLength  int
+// 			variableReplyLength int
+// 		)
 
-		if blockLength == 0 {
-			break
-		}
+// 		if variable.IsBlock() {
+// 			variableCallLength = 16  // Type + length/elements + address(2)
+// 			variableReplyLength = 12 // Type + length/elements + address
+// 		} else {
+// 			variableCallLength = 12 // Type + address(2)
+// 			variableReplyLength = 8 // Type + index
+// 		}
 
-		if !headerRead {
-			res.Skip(2 * 4) // Skip type and length from the header
-			index, _ := res.LittleEndian.ReadUint32()
+// 		variableCallLength += variable.getBufferLength()
 
-			if int32(index) < 0 {
-				variable.Error = fmt.Errorf("failed to read multiblock: invalid index")
-				return nil, variable.Error
-			}
-			headerRead = true
+// 		if callLength+variableCallLength > maxCallLength || replyLength+variableReplyLength > maxCallLength {
+// 			output = append(output, buffer)
+// 			buffer = writeCall{}
+// 			callLength = 12
+// 			replyLength = 8
+// 		}
 
-		}
+// 		buffer.data = append(buffer.data, struct {
+// 			variable *Variable
+// 			value    any
+// 		}{variable, value})
 
-		line, _ := res.ReadBytes(int(blockLength) - 12) // Total length - header length
-		buffer = append(buffer, line...)
-	}
+// 		if variableCallLength+12 > maxCallLength {
+// 			buffer.isMultiBlock = true
+// 		}
 
-	// TODO: Not quite sure what to do here. The multi block read should be parsed somehow...
-	// For now we just set the value to the buffer.
-	value := buffer
+// 		callLength += variableCallLength
+// 		replyLength += variableReplyLength
 
-	return value, nil
-}
+// 	}
 
-// parseVariable parses a single variable from the buffer. It returns an error if the variable could not be parsed.
-func (v *VhdModule) parseVariable(variable *Variable, buf *buffer.Buffer) (any, error) {
-	_type, _ := buf.LittleEndian.ReadUint32()
-	switch _type {
-	case _VHD_SingleRtype:
-		buf.Skip(4) // Skip the length, we don't need it
-	case _VHD_SingleBtype:
-	default:
-		return nil, fmt.Errorf("failed to read variables: invalid type %d", _type)
-	}
+// 	if len(buffer.data) > 0 {
+// 		output = append(output, buffer)
+// 	}
 
-	index, _ := buf.LittleEndian.ReadUint32()
-	if int32(index) < 0 {
-		buf.Skip(uint(variable.getBufferLength())) // Skip the buffer
-		return nil, fmt.Errorf("failed to read variables: invalid index")
-	}
+// 	return output
+// }
 
-	value := variable.valueFromBuffer(buf)
-	return value, nil
-}
+// // readMultiBlock reads a multiblock from the target. It returns an error if the multiblock could not be read.
+// func (v *VhdModule) readMultiBlock(variables []*Variable, bufferID uint32) (any, error) {
+// 	if len(variables) != 1 {
+// 		return nil, fmt.Errorf("failed to read multiblock: expected 1 variable, got %d", len(variables))
+// 	}
 
-func (v *VhdModule) writeMultiBlockValue(variable *Variable, value any, bufferID uint32) error {
-	buf, err := variable.valueToBuffer(value)
-	if err != nil {
-		return err
-	}
+// 	variable := variables[0]
 
-	maxCallLength := uint32(v.client.getMaximumCallLength())
-	length := uint32(variable.getBufferLength() + 16)
-	blockLength := maxCallLength - 32
-	offset := uint32(0)
-	headerWritten := false
+// 	// The first variable in the buffer is the number of elements.
+// 	offset := uint32(0)
+// 	blockLength := uint32(1)
+// 	headerRead := false
+// 	buffer := make([]byte, 0, v.client.maxCallLength)
 
-	for offset < length {
-		remaining := length - offset - blockLength
-		data := []any{offset, blockLength, remaining, bufferID}
+// 	for blockLength != 0 {
+// 		res, err := rpc.Call(
+// 			v.client.getConnection(v.info),
+// 			rpc.Header{
+// 				Module:    v.info.ModuleNumber,
+// 				Version:   rpc.VersionDefault,
+// 				Procedure: _SVI_Procedure_GetMultiBlock,
+// 				Auth:      v.client.auth,
+// 			},
+// 			offset, bufferID,
+// 		)
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		if !headerWritten {
-			data = append(data, uint32(_VHD_SingleRtype), uint32(variable.getBufferLength()), variable.Address)
-			headerWritten = true
+// 		returnCode, _ := res.LittleEndian.ReadUint32()
+// 		if err := msys.ParseReturnCode(returnCode); err != nil {
+// 			return nil, fmt.Errorf("failed to read multiblock: %w", err)
+// 		}
 
-			data = append(data, buf[:blockLength-16])
-		} else {
-			data = append(data, buf[offset-16:offset-16+blockLength])
-		}
+// 		offset, _ = res.LittleEndian.ReadUint32()
+// 		blockLength, _ = res.LittleEndian.ReadUint32()
+// 		res.Skip(4) // Skip the number of elements
 
-		buf, err := rpc.Call(
-			v.client.getConnection(v.info),
-			rpc.Header{
-				Module:    v.info.ModuleNumber,
-				Version:   _RPC_VersionDefault,
-				Procedure: _SVI_Procedure_SetMultiBlock,
-				Auth:      v.client.auth,
-			},
-			data...,
-		)
-		if err != nil {
-			return err
-		}
+// 		if blockLength == 0 {
+// 			break
+// 		}
 
-		returnCode, _ := buf.LittleEndian.ReadUint32()
-		if err := parseReturnCode(returnCode); err != nil {
-			return fmt.Errorf("failed to write multiblock: %w", err)
-		}
+// 		if !headerRead {
+// 			res.Skip(2 * 4) // Skip type and length from the header
+// 			index, _ := res.LittleEndian.ReadUint32()
 
-		offset += blockLength
-		blockLength = maxCallLength - 16
-		if (length - offset) < blockLength {
-			blockLength = length - offset
-		}
-	}
+// 			if int32(index) < 0 {
+// 				variable.Error = fmt.Errorf("failed to read multiblock: invalid index")
+// 				return nil, variable.Error
+// 			}
+// 			headerRead = true
 
-	return nil
-}
+// 		}
+
+// 		line, _ := res.ReadBytes(int(blockLength) - 12) // Total length - header length
+// 		buffer = append(buffer, line...)
+// 	}
+
+// 	// TODO: Not quite sure what to do here. The multi block read should be parsed somehow...
+// 	// For now we just set the value to the buffer.
+// 	value := buffer
+
+// 	return value, nil
+// }
+
+// // parseVariable parses a single variable from the buffer. It returns an error if the variable could not be parsed.
+// func (v *VhdModule) parseVariable(variable *Variable, buf *buffer.Buffer) (any, error) {
+// 	_type, _ := buf.LittleEndian.ReadUint32()
+// 	switch _type {
+// 	case _VHD_SingleRtype:
+// 		buf.Skip(4) // Skip the length, we don't need it
+// 	case _VHD_SingleBtype:
+// 	default:
+// 		return nil, fmt.Errorf("failed to read variables: invalid type %d", _type)
+// 	}
+
+// 	index, _ := buf.LittleEndian.ReadUint32()
+// 	if int32(index) < 0 {
+// 		buf.Skip(uint(variable.getBufferLength())) // Skip the buffer
+// 		return nil, fmt.Errorf("failed to read variables: invalid index")
+// 	}
+
+// 	value := variable.valueFromBuffer(buf)
+// 	return value, nil
+// }
+
+// func (v *VhdModule) writeMultiBlockValue(variable *Variable, value any, bufferID uint32) error {
+// 	buf, err := variable.valueToBuffer(value)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	maxCallLength := uint32(v.client.getMaximumCallLength())
+// 	length := uint32(variable.getBufferLength() + 16)
+// 	blockLength := maxCallLength - 32
+// 	offset := uint32(0)
+// 	headerWritten := false
+
+// 	for offset < length {
+// 		remaining := length - offset - blockLength
+// 		data := []any{offset, blockLength, remaining, bufferID}
+
+// 		if !headerWritten {
+// 			data = append(data, uint32(_VHD_SingleRtype), uint32(variable.getBufferLength()), variable.Address)
+// 			headerWritten = true
+
+// 			data = append(data, buf[:blockLength-16])
+// 		} else {
+// 			data = append(data, buf[offset-16:offset-16+blockLength])
+// 		}
+
+// 		buf, err := rpc.Call(
+// 			v.client.getConnection(v.info),
+// 			rpc.Header{
+// 				Module:    v.info.ModuleNumber,
+// 				Version:   rpc.VersionDefault,
+// 				Procedure: _SVI_Procedure_SetMultiBlock,
+// 				Auth:      v.client.auth,
+// 			},
+// 			data...,
+// 		)
+// 		if err != nil {
+// 			return err
+// 		}
+
+// 		returnCode, _ := buf.LittleEndian.ReadUint32()
+// 		if err := msys.ParseReturnCode(returnCode); err != nil {
+// 			return fmt.Errorf("failed to write multiblock: %w", err)
+// 		}
+
+// 		offset += blockLength
+// 		blockLength = maxCallLength - 16
+// 		if (length - offset) < blockLength {
+// 			blockLength = length - offset
+// 		}
+// 	}
+
+// 	return nil
+// }
 
 // resetVariables resets the initialized state of the variables.
 func resetVariables(variables []*Variable) {

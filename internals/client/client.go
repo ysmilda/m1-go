@@ -1,5 +1,5 @@
 // Package m1 contains an implementation for communicating with the Bachmann M1 PLC platform.
-package m1
+package client
 
 import (
 	"encoding/binary"
@@ -14,14 +14,14 @@ import (
 // It is intended solely for internal use and should not be used directly.
 // On improper usage, the client may panic.
 // It is used to manage the connections to the target and to store the authentication information.
-type client struct {
+type Client struct {
 	// overall configuration
 	ip       net.IP
 	timeout  time.Duration
 	protocol string
 
 	// all connections for all modules. Every module has its own connection.
-	connections map[ModuleInfo]*conn
+	connections map[uint32]*conn
 
 	auth          []byte
 	sessionID     uint32
@@ -33,21 +33,21 @@ var validProtocols = map[string]bool{
 	"udp": true,
 }
 
-func newClient(ip net.IP, timeout time.Duration, protocol string) *client {
+func NewClient(ip net.IP, timeout time.Duration, protocol string) *Client {
 	if _, ok := validProtocols[protocol]; !ok {
 		panic(fmt.Sprintf("invalid protocol %s", protocol))
 	}
 
-	return &client{
+	return &Client{
 		ip:            ip,
 		timeout:       timeout,
 		protocol:      protocol,
-		connections:   make(map[ModuleInfo]*conn),
+		connections:   make(map[uint32]*conn),
 		maxCallLength: 2048,
 	}
 }
 
-func (c client) close() error {
+func (c Client) Close() error {
 	for _, conn := range c.connections {
 		err := conn.Close()
 		if err != nil {
@@ -57,14 +57,14 @@ func (c client) close() error {
 	return nil
 }
 
-func (c *client) addConnection(module ModuleInfo) error {
+func (c *Client) AddConnection(id uint32, udpPort, tcpPort uint16) error {
 	var port uint16
 
 	switch c.protocol {
 	case "tcp":
-		port = module.TCPPort
+		port = tcpPort
 	case "udp":
-		port = module.UDPPort
+		port = udpPort
 	}
 
 	var err error
@@ -78,19 +78,19 @@ func (c *client) addConnection(module ModuleInfo) error {
 		isTCP:   c.protocol == "tcp",
 		timeout: c.timeout,
 	}
-	c.connections[module] = connection
+	c.connections[id] = connection
 	return nil
 }
 
-func (c *client) getConnection(module ModuleInfo) *conn {
-	connection, ok := c.connections[module]
+func (c *Client) GetConnection(id uint32) *conn {
+	connection, ok := c.connections[id]
 	if !ok {
 		panic("module not initialized")
 	}
 	return connection
 }
 
-func (c *client) setAuth(auth []byte, length uint32) {
+func (c *Client) SetAuth(auth []byte, length uint32) {
 	c.auth = auth[:length]
 	if length >= 12 {
 		flavor := binary.BigEndian.Uint32(auth[:4])
@@ -103,7 +103,15 @@ func (c *client) setAuth(auth []byte, length uint32) {
 	}
 }
 
-func (c *client) getMaximumCallLength() int {
+func (c *Client) GetAuth() []byte {
+	return c.auth
+}
+
+func (c *Client) SetMaximalCallLength(length int32) {
+	c.maxCallLength = length
+}
+
+func (c *Client) GetMaximumCallLength() int {
 	if len(c.auth) == 0 {
 		return int(c.maxCallLength - 40)
 	}
