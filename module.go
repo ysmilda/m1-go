@@ -3,29 +3,23 @@ package m1
 import (
 	"fmt"
 
-	"github.com/ysmilda/m1-go/pkg/rpc"
-)
-
-const (
-	_SVI_Procedure_GetVariableInfo = 10014
-	_SVI_Procedure_GetServerInfo   = 10016
-
-	_SVI_VariableInfoExtendedCall = 0x7575abcd
-
-	_SVI_FlagDirectory = 0x0000
+	"github.com/ysmilda/m1-go/internals/m1client"
+	"github.com/ysmilda/m1-go/modules/msys"
+	"github.com/ysmilda/m1-go/modules/res"
+	"github.com/ysmilda/m1-go/modules/svi"
 )
 
 // Module wraps a generic module of the M1 controller.
 type Module struct {
-	client *client
-	info   ModuleInfo
+	client *m1client.Client
+	info   res.ModuleNumber
 	name   string
 
-	msysVersion Version
+	msysVersion msys.Version
 }
 
 // newModule creates a new module with the given module number.
-func newModule(client *client, name string, info ModuleInfo, msysVersion Version) (*Module, error) {
+func newModule(client *m1client.Client, name string, info res.ModuleNumber, msysVersion msys.Version) *Module {
 	m := &Module{
 		client:      client,
 		name:        name,
@@ -33,36 +27,21 @@ func newModule(client *client, name string, info ModuleInfo, msysVersion Version
 		msysVersion: msysVersion,
 	}
 
-	err := client.addConnection(info)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add connection: %w", err)
-	}
-
-	return m, nil
+	return m
 }
 
 // GetSVIServerInfo returns the server information of the SVI server.
-func (m *Module) GetSVIServerInfo() (*SVIServerInfo, error) {
-	buf, err := rpc.Call(
-		m.client.getConnection(m.info),
-		rpc.Header{
-			Module:    m.info.ModuleNumber,
-			Version:   _RPC_VersionDefault,
-			Procedure: _SVI_Procedure_GetServerInfo,
-			Auth:      m.client.auth,
-		},
+func (m *Module) GetSVIServerInfo() (*svi.ServerInfo, error) {
+	reply, err := call(
+		m.client,
+		m.info,
+		svi.Procedures.GetServerInfo(svi.GetServerInfoCall{}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SVI server info: %w", err)
 	}
 
-	reply := &SVIServerInfo{}
-	returnCode := reply.parse(buf)
-	if err := parseReturnCode(returnCode); err != nil {
-		return nil, fmt.Errorf("failed to get SVI server info: %w", err)
-	}
-
-	return reply, nil
+	return &reply.ServerInfo, nil
 }
 
 // GetVariableCount returns the number of variables of the module.
@@ -72,13 +51,13 @@ func (m *Module) GetVariableCount() (uint32, error) {
 		return 0, fmt.Errorf("failed to get variable count: %w", err)
 	}
 
-	return info.NumberOfVariables, nil
+	return info.NumberOfProcessValues, nil
 }
 
 // ListVariables returns a list of all variables of the module.
 // The returned variables are not initialized. To initialize them, use the VHD module on the target.
 func (m *Module) ListVariables() ([]Variable, error) {
-	version425 := Version{Major: 4, Minor: 25, Patch: 0, ReleaseType: "release"}
+	version425 := msys.Version{Major: 4, Minor: 25, Patch: 0, ReleaseType: msys.Release}
 	if m.msysVersion.Compare(version425) >= 0 {
 		return m.listVariables2()
 	} else {
@@ -97,54 +76,37 @@ func (m *Module) listVariables2() ([]Variable, error) {
 	result := make([]Variable, 0)
 
 	for {
-		buf, err := rpc.Call(
-			m.client.getConnection(m.info),
-			rpc.Header{
-				Module:    m.info.ModuleNumber,
-				Version:   _RPC_VersionDefault,
-				Procedure: _SVI_Procedure_GetVariableInfo,
-				Auth:      m.client.auth,
-			},
-			uint32(_SVI_VariableInfoExtendedCall), variablesPerCall, index,
-			byte(1), rpc.NewSpare(11), uint32(1), rpc.NewString("", 1),
+		reply, err := call(
+			m.client,
+			m.info,
+			svi.Procedures.GetExtendedProcessValueInfo(svi.GetExtendedProcessValueInfoCall{
+				NumberOfProcessValues: variablesPerCall,
+				ContinuationPoint:     index,
+				GetSubprocessValues:   true,
+				PathLength:            1,
+				Path:                  "", // Start from the root.
+			}),
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get variables: %w", err)
+			return nil, fmt.Errorf("unable to get variables: %w", err)
 		}
 
-		returnCode, _ := buf.LittleEndian.ReadUint32()
-		if err := parseReturnCode(returnCode); err != nil {
-			return nil, err
-		}
-
-		buf.Skip(4)                               // Number of PV (old, not used)
-		index, _ = buf.LittleEndian.ReadUint32()  // Next index
-		buf.Skip(3 * 4)                           // Spare
-		count, _ := buf.LittleEndian.ReadUint32() // Number of returned variables
-
-		for range count {
-			buf.Align4()
-			flags, _ := buf.LittleEndian.ReadUint16()
-			buf.Skip(2)
-			format, _ := buf.LittleEndian.ReadUint16()
-			length, _ := buf.LittleEndian.ReadUint16()
-			nameLength, _ := buf.LittleEndian.ReadUint32()
-			name, _ := buf.ReadString(int(nameLength) + 1)
-
-			if flags == _SVI_FlagDirectory {
-				path = fmt.Sprintf("%s/%s", m.name, name)
+		for _, pv := range reply.ProcessValues {
+			if pv.Flag == svi.FlagTypeDirectory {
+				path = fmt.Sprintf("%s/%s", m.name, pv.Name)
 				continue
-			} else {
-				name = fmt.Sprintf("%s/%s", path, name)
 			}
 
 			result = append(result, Variable{
-				Name:   name,
-				Format: format,
-				Length: length,
+				Name: fmt.Sprintf("%s/%s", path, pv.Name),
+				Variable: svi.Variable{
+					Format: pv.Format,
+					Length: pv.Length,
+				},
 			})
 		}
 
+		index = reply.ContinuationPoint
 		if index == 0 {
 			break
 		}
@@ -163,42 +125,28 @@ func (m *Module) listVariables() ([]Variable, error) {
 	result := make([]Variable, 0)
 
 	for {
-		buf, err := rpc.Call(
-			m.client.getConnection(m.info),
-			rpc.Header{
-				Module:    m.info.ModuleNumber,
-				Version:   _RPC_VersionDefault,
-				Procedure: _SVI_Procedure_GetVariableInfo,
-				Auth:      m.client.auth,
-			},
-			index, variablesPerCall,
+		reply, err := call(
+			m.client,
+			m.info,
+			svi.Procedures.GetProcessValueInfo(svi.GetProcessValueInfoCall{
+				StartIndex: variablesPerCall,
+			}),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get variables: %w", err)
 		}
 
-		returnCode, _ := buf.LittleEndian.ReadUint32()
-		if returnCode == (_SOURCE_SVI | _ERROR_FAILED) {
-			// This is how the system announces that there are no more variables.
-			break
-		} else if err := parseReturnCode(returnCode); err != nil {
-			return nil, err
-		}
-
-		count, _ := buf.LittleEndian.ReadUint32()
-		for range count {
-			name, _ := buf.ReadString(_SVI_NameLength)
-			format, _ := buf.LittleEndian.ReadUint16()
-			length, _ := buf.LittleEndian.ReadUint16()
-
+		for _, pv := range reply.ProcessValues {
 			result = append(result, Variable{
-				Name:   "RES/" + name,
-				Format: format,
-				Length: length,
+				Name: "RES/" + pv.Name,
+				Variable: svi.Variable{
+					Format: pv.Format,
+					Length: pv.Length,
+				},
 			})
 		}
 
-		if count < variablesPerCall {
+		if uint32(len(reply.ProcessValues)) < variablesPerCall {
 			break
 		}
 		index += variablesPerCall

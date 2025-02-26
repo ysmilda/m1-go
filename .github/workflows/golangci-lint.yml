@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  golangci:
+  quality:
     name: lint
     runs-on: ubuntu-latest
     steps:

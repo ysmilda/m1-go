@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net"
 	"time"
+
+	"github.com/ysmilda/m1-go/internals/m1client"
+	"github.com/ysmilda/m1-go/modules/msys"
 )
 
 var defaultModules = map[string]struct{}{
-	"RES":  {},
-	"VHD":  {},
-	"INFO": {},
+	"RES": {},
+	"VHD": {},
 }
 
 // Target represents a target device.
@@ -19,37 +21,26 @@ var defaultModules = map[string]struct{}{
 // Make sure to follow the documentation of the modules when using them directly.
 // The target should be closed after usage.
 type Target struct {
-	// RES - This module offers access to basic information about the target as well as the ability to log in and out.
+	// RES - The resource handler manages software and hardware resources on the controller
 	RES *ResModule
-
-	// VHD - This module offers access to t.b.d.
-	//
-	// To use this module one must be logged in and have initialized the VHD module by calling target.InitializeVHD().
-	VHD *VhdModule
-
-	INFO *InfoModule
 
 	Modules map[string]*Module
 
-	client *client
+	client *m1client.Client
 
 	sessionTimeout  int32
 	sessionLifetime int32
 	loginChecker    bool
 	loginRequired   bool
 
-	msysVersion Version
+	msysVersion msys.Version
 }
 
-// NewTarget creates a new target with the given IP address, protocol and timeout.
-// Protocol must be either "tcp" or "udp". "tcp" is currently not fully functional.
-func NewTarget(ip net.IP, protocol string, timeout time.Duration) (*Target, error) {
-	client := newClient(ip, timeout, protocol)
+// NewTarget creates a new target for the given IP address and timeout.
+func NewTarget(ip net.IP, timeout time.Duration) (*Target, error) {
+	client := m1client.NewClient(ip, timeout)
 
-	res, err := newResModule(client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create RES module: %w", err)
-	}
+	res := newResModule(client)
 
 	t := &Target{
 		client:  client,
@@ -58,12 +49,7 @@ func NewTarget(ip net.IP, protocol string, timeout time.Duration) (*Target, erro
 	}
 
 	// Setup the connection to the target.
-	err = t.connect()
-	if err != nil {
-		return nil, err
-	}
-
-	err = t.initializeINFO()
+	err := t.connect()
 	if err != nil {
 		return nil, err
 	}
@@ -79,14 +65,12 @@ func (t *Target) Close() error {
 		return err
 	}
 
-	if t.VHD != nil {
-		err = t.VHD.Close()
-		if err != nil {
-			return err
-		}
-	}
+	return t.client.Close()
+}
 
-	return t.client.close()
+// GetClient returns the client used to connect to the target.
+func (t *Target) GetClient() *m1client.Client {
+	return t.client
 }
 
 // Login logs in to the target with the given user and password.
@@ -102,12 +86,12 @@ func (t *Target) Login(user, password, toolName string) error {
 	}
 
 	// If the version is newer than 3.70.8-release we need to use the login2 procedure.
-	if t.msysVersion.Compare(Version{Major: 3, Minor: 70, Patch: 8, ReleaseType: "release"}) >= 0 {
-		_, err := t.RES.Login2(user, password, toolName, t.loginChecker, 0)
+	if t.msysVersion.Compare(msys.Version{Major: 3, Minor: 70, Patch: 8, ReleaseType: msys.Release}) >= 0 {
+		_, err := t.RES.Login2(user, password, t.loginChecker, 0)
 		return err
 	}
 
-	_, err := t.RES.Login(user, password, toolName, t.loginChecker)
+	_, err := t.RES.Login(user, password, t.loginChecker)
 	return err
 }
 
@@ -117,7 +101,7 @@ func (t *Target) Logout() error {
 		return nil
 	}
 
-	return t.RES.Logout(0)
+	return t.RES.Logout()
 }
 
 // ConnectModule connects to a custom module on the target.
@@ -125,7 +109,7 @@ func (t *Target) Logout() error {
 // The module can be accessed via the Modules map on the target.
 func (t *Target) ConnectModule(moduleName string) error {
 	if _, ok := defaultModules[moduleName]; ok {
-		return errors.New("use the target struct members for the default modules")
+		return errors.New("use the target struct members for access to the default modules")
 	}
 
 	if _, ok := t.Modules[moduleName]; ok {
@@ -137,12 +121,7 @@ func (t *Target) ConnectModule(moduleName string) error {
 		return fmt.Errorf("failed to get module number for %s: %w", moduleName, err)
 	}
 
-	m, err := newModule(t.client, moduleName, *info, t.msysVersion)
-	if err != nil {
-		return fmt.Errorf("failed to create module %s: %w", moduleName, err)
-	}
-
-	t.Modules[moduleName] = m
+	t.Modules[moduleName] = newModule(t.client, moduleName, *info, t.msysVersion)
 	return nil
 }
 
@@ -161,7 +140,7 @@ func (t *Target) connect() error {
 	t.RES.msysVersion = t.msysVersion
 
 	// If the version is newer than 3.95.0-release we need to open the RES module.
-	if info.MSysVersion.Compare(Version{Major: 3, Minor: 95, Patch: 0, ReleaseType: "release"}) >= 0 {
+	if info.MSysVersion.Compare(msys.Version{Major: 3, Minor: 95, Patch: 0, ReleaseType: msys.Release}) >= 0 {
 		settings, err := t.RES.Open()
 		if err != nil {
 			return err
@@ -170,38 +149,9 @@ func (t *Target) connect() error {
 		t.sessionTimeout = settings.SessionTimeout
 		t.sessionLifetime = settings.SessionLifetime
 
-		t.client.maxCallLength = settings.SMIMessageSize
-		t.client.setAuth(settings.Auth, settings.AuthLen)
+		t.client.SetMaximalCallLength(settings.SMIMessageSize)
+		t.client.SetAuth(settings.Auth, settings.AuthLen)
 	}
 
-	return nil
-}
-
-func (t *Target) InitializeVHD() error {
-	// Create a session for the VHD module.
-	info, err := t.RES.GetModuleNumber("VHD")
-	if err != nil {
-		return fmt.Errorf("failed to get VHD module number: %w", err)
-	}
-
-	vhd, err := newVhdModule(t.client, *info)
-	if err != nil {
-		return fmt.Errorf("failed to create VHD module: %w", err)
-	}
-
-	t.VHD = vhd
-	return nil
-}
-
-func (t *Target) initializeINFO() error {
-	infoModuleInfo, err := t.RES.GetModuleNumber("INFO")
-	if err != nil {
-		return fmt.Errorf("failed to get INFO module number: %w", err)
-	}
-	info, err := newInfoModule(t.client, *infoModuleInfo, t.msysVersion)
-	if err != nil {
-		return fmt.Errorf("failed to create INFO module: %w", err)
-	}
-	t.INFO = info
 	return nil
 }

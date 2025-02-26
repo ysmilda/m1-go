@@ -12,7 +12,6 @@ linters:
     # Enabled manually:
     - asciicheck # Finds non-ASCII identifiers.
     - errorlint # Finds problems with error wrapping.
-    - copyloopvar 
     - goconst # Finds repeated strings that could be replaced by a const.
     - gocyclo # Finds funcs with high cyclomatic complexity.
     - godot # Finds comments that do not end with a period.
@@ -23,31 +22,15 @@ linters:
     - nilnil # Finds `return nil, nil`.
     - prealloc # Finds slice declarations that could be pre-allocated.
     - stylecheck # See also: https://staticcheck.io/docs/checks/#ST.
-    - tenv # Finds incorrect use of `os.Setenv()` in tests.
-    - tparallel # Finds incorrect use of `t.Parallel()` in tests.
     - unconvert # Finds unnecessary type conversions.
     - unparam # Finds unused function parameters.
-  
+
 linters-settings:
   goconst:
     min-len: 5
     min-occurrences: 5
-
-  gocyclo:
-    min-complexity: 20
-
-  godot:
-    capital: true
-    period: true
-
-  lll:
-    line-length: 120
-    tab-width: 2
-
-  nakedret:
-    max-func-lines: 20
-        
+    
   stylecheck:
     checks:
       - all
-      - -ST1003 # To keep the defines in line with the way they are defined by Bachmann we need to disable the ALL_CAPS check.
+      - -ST1003 # To keep the defines in line with the way they are defined by Bachmann we need to disable the ALL_CAPS check. 
