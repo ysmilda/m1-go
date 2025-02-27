@@ -7,7 +7,7 @@ const (
 	AddressTypeB AddressType = 0x0002
 )
 
-type FlagType uint32
+type FlagType uint16
 
 const (
 	FlagTypeDirectory FlagType = 0x0000

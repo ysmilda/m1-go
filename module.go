@@ -69,47 +69,35 @@ func (m *Module) ListVariables() ([]Variable, error) {
 // This is the preferred implementation for newer versions of the M1 controller.
 // It supports a maximum of 255 characters for the variable name.
 func (m *Module) listVariables2() ([]Variable, error) {
-	const variablesPerCall = uint32(1000)
-	index := uint32(0)
+	reply, err := listCall(
+		m.client,
+		m.info,
+		svi.ListProcedures.ListExtendedProcessValueInfo(&svi.ListExtendedProcessValueInfoCall{
+			GetSubprocessValues: true,
+			PathLength:          1,
+			Path:                "", // Start from the root.
+		}),
+		1000,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	path := m.name
-
-	result := make([]Variable, 0)
-
-	for {
-		reply, err := call(
-			m.client,
-			m.info,
-			svi.Procedures.GetExtendedProcessValueInfo(svi.GetExtendedProcessValueInfoCall{
-				NumberOfProcessValues: variablesPerCall,
-				ContinuationPoint:     index,
-				GetSubprocessValues:   true,
-				PathLength:            1,
-				Path:                  "", // Start from the root.
-			}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get variables: %w", err)
+	result := []Variable{}
+	for _, value := range reply {
+		if value.Flag == svi.FlagTypeDirectory {
+			path = fmt.Sprintf("%s/%s", m.name, value.Name)
+			continue
 		}
 
-		for _, pv := range reply.ProcessValues {
-			if pv.Flag == svi.FlagTypeDirectory {
-				path = fmt.Sprintf("%s/%s", m.name, pv.Name)
-				continue
-			}
-
-			result = append(result, Variable{
-				Name: fmt.Sprintf("%s/%s", path, pv.Name),
-				Variable: svi.Variable{
-					Format: pv.Format,
-					Length: pv.Length,
-				},
-			})
-		}
-
-		index = reply.ContinuationPoint
-		if index == 0 {
-			break
-		}
+		result = append(result, Variable{
+			Name: fmt.Sprintf("%s/%s", path, value.Name),
+			Variable: svi.Variable{
+				Format: value.Format,
+				Length: value.Length,
+			},
+		})
 	}
 
 	return result, nil
@@ -119,37 +107,25 @@ func (m *Module) listVariables2() ([]Variable, error) {
 // This is a fallback implementation for older versions of the M1 controller.
 // It supports a maximum of 64 characters for the variable name.
 func (m *Module) listVariables() ([]Variable, error) {
-	const variablesPerCall = uint32(29)
-	index := uint32(0)
+	reply, err := listCall(
+		m.client,
+		m.info,
+		svi.ListProcedures.ListProcessValueInfo(&svi.ListProcessValueInfoCall{}),
+		29,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	result := make([]Variable, 0)
-
-	for {
-		reply, err := call(
-			m.client,
-			m.info,
-			svi.Procedures.GetProcessValueInfo(svi.GetProcessValueInfoCall{
-				StartIndex: variablesPerCall,
-			}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get variables: %w", err)
-		}
-
-		for _, pv := range reply.ProcessValues {
-			result = append(result, Variable{
-				Name: "RES/" + pv.Name,
-				Variable: svi.Variable{
-					Format: pv.Format,
-					Length: pv.Length,
-				},
-			})
-		}
-
-		if uint32(len(reply.ProcessValues)) < variablesPerCall {
-			break
-		}
-		index += variablesPerCall
+	result := []Variable{}
+	for _, value := range reply {
+		result = append(result, Variable{
+			Name: "RES/" + value.Name,
+			Variable: svi.Variable{
+				Format: value.Format,
+				Length: value.Length,
+			},
+		})
 	}
 
 	return result, nil

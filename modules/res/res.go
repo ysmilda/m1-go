@@ -13,10 +13,6 @@ func (procedures) GetModuleInfo(c ModuleInfoCall) rpc.Procedure[ModuleInfoCall, 
 	return rpc.NewProcedure[ModuleInfoCall, ModuleInfoReply](104, rpc.VersionDefault, c)
 }
 
-func (procedures) ListModuleInfo(c ListModuleInfoCall) rpc.Procedure[ListModuleInfoCall, ListModuleInfoReply] {
-	return rpc.NewProcedure[ListModuleInfoCall, ListModuleInfoReply](106, rpc.VersionDefault, c)
-}
-
 func (procedures) RequestModuleAccess(c ModuleAccessCall) rpc.Procedure[ModuleAccessCall, ModuleAccessReply] {
 	return rpc.NewProcedure[ModuleAccessCall, ModuleAccessReply](108, rpc.VersionDefault, c)
 }
@@ -35,22 +31,16 @@ func (procedures) GetExtendedModuleInfo(
 	return rpc.NewProcedure[ExtendedModuleInfoCall, ExtendedModuleInfoReply](116, rpc.VersionDefault, c)
 }
 
-func (procedures) ListExtendedModuleInfo(
-	c ExtendedModuleInfoListCall,
-) rpc.Procedure[ExtendedModuleInfoListCall, ExtendedModuleInfoListReply] {
-	return rpc.NewProcedure[ExtendedModuleInfoListCall, ExtendedModuleInfoListReply](118, rpc.VersionDefault, c)
-}
-
 func (procedures) ListModuleChildTasks(
-	c ModuleChildListCall,
-) rpc.Procedure[ModuleChildListCall, ModuleChildListReply] {
-	return rpc.NewProcedure[ModuleChildListCall, ModuleChildListReply](120, rpc.VersionDefault, c)
+	c ModuleChildCall,
+) rpc.Procedure[ModuleChildCall, ModuleChildReply] {
+	return rpc.NewProcedure[ModuleChildCall, ModuleChildReply](120, rpc.VersionDefault, c)
 }
 
 func (procedures) ListModuleTasks(
-	c ModuleTaskListCall,
-) rpc.Procedure[ModuleTaskListCall, ModuleTaskListReply] {
-	return rpc.NewProcedure[ModuleTaskListCall, ModuleTaskListReply](122, rpc.VersionDefault, c)
+	c ModuleTaskCall,
+) rpc.Procedure[ModuleTaskCall, ModuleTaskReply] {
+	return rpc.NewProcedure[ModuleTaskCall, ModuleTaskReply](122, rpc.VersionDefault, c)
 }
 
 // TODO: Add missing procedures
@@ -95,4 +85,26 @@ func (procedures) ExtPing(c ExtPingCall) rpc.Procedure[ExtPingCall, ExtPingReply
 
 func (procedures) FlashLED(c FlashLEDCall) rpc.Procedure[FlashLEDCall, FlashLEDReply] {
 	return rpc.NewProcedure[FlashLEDCall, FlashLEDReply](324, rpc.VersionDefault, c)
+}
+
+// --------------
+// ListProcedures
+// --------------
+
+var ListProcedures listProcedures
+
+type listProcedures struct{}
+
+func (listProcedures) ModuleInfo(c *ListModuleInfoCall) rpc.ListProcedure[ModuleInfo, *ListModuleInfoCall, *ListModuleInfoReply] {
+	return rpc.NewListProcedure[ModuleInfo, *ListModuleInfoCall, *ListModuleInfoReply](106, rpc.VersionDefault, c)
+}
+
+func (listProcedures) ExtendedModuleInfo(
+	c *ExtendedModuleInfoListCall,
+) rpc.ListProcedure[ExtendedModuleInfo, *ExtendedModuleInfoListCall, *ExtendedModuleInfoListReply] {
+	return rpc.NewListProcedure[ExtendedModuleInfo, *ExtendedModuleInfoListCall, *ExtendedModuleInfoListReply](118, rpc.VersionDefault, c)
+}
+
+func Test(c *ListModuleInfoCall) rpc.ListProcedure[ModuleInfo, *ListModuleInfoCall, *ListModuleInfoReply] {
+	return rpc.NewListProcedure[ModuleInfo, *ListModuleInfoCall, *ListModuleInfoReply](106, rpc.VersionDefault, c)
 }

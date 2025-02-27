@@ -44,7 +44,7 @@ type Header struct {
 // Call sends an RPC call to the target with the given header and procedure.
 // It packs and unpacks the call and reply objects and checks for errors.
 func Call[C any, R ReturnCoder](rw io.ReadWriter, header Header, procedure Procedure[C, R]) (*R, error) {
-	body, err := m1binary.Encode(&procedure.Call)
+	body, err := m1binary.Encode(procedure.Call)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse call: %w", err)
 	}
@@ -65,6 +65,47 @@ func Call[C any, R ReturnCoder](rw io.ReadWriter, header Header, procedure Proce
 	}
 
 	return reply, nil
+}
+
+func ListCall[T any, C ListCaller, R ListReturnCoder[T]](
+	rw io.ReadWriter, header Header, procedure ListProcedure[T, C, R], stepSize uint32,
+) ([]T, error) {
+	result := []T{}
+	start := uint32(0)
+
+	for {
+		procedure.Call.SetFirst(start)
+		procedure.Call.SetCount(stepSize)
+
+		body, err := m1binary.Encode(procedure.Call)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse call: %w", err)
+		}
+
+		buf, err := call(rw, header, body)
+		if err != nil {
+			return nil, fmt.Errorf("unable to make rpc call: %w", err)
+		}
+
+		reply := new(R)
+		_, err = m1binary.Decode(buf, reply)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse reply: %w", err)
+		}
+
+		if err := m1errors.ParseReturnCode((*reply).GetReturnCode()); err != nil {
+			return nil, err
+		}
+
+		result = append(result, (*reply).GetValues()...)
+		start += (*reply).GetCount()
+
+		if (*reply).Done(stepSize) {
+			break
+		}
+	}
+
+	return result, nil
 }
 
 // call sends an RPC call to the target with the given header and call data.

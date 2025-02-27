@@ -43,15 +43,6 @@ func (procedures) GetAddress(c GetAddressCall) rpc.Procedure[GetAddressCall, Get
 	return rpc.NewProcedure[GetAddressCall, GetAddressReply](10012, rpc.VersionDefault, c)
 }
 
-func (procedures) GetProcessValueInfo(c GetProcessValueInfoCall) rpc.Procedure[GetProcessValueInfoCall, GetProcessValueInfoReply] {
-	return rpc.NewProcedure[GetProcessValueInfoCall, GetProcessValueInfoReply](10014, rpc.VersionDefault, c)
-}
-
-func (procedures) GetExtendedProcessValueInfo(c GetExtendedProcessValueInfoCall) rpc.Procedure[GetExtendedProcessValueInfoCall, GetExtendedProcessValueInfoReply] {
-	c.extendedCallIdentifier = PvInfoExtendedCallIdentifier
-	return rpc.NewProcedure[GetExtendedProcessValueInfoCall, GetExtendedProcessValueInfoReply](10014, rpc.VersionDefault, c)
-}
-
 func (procedures) GetServerInfo(c GetServerInfoCall) rpc.Procedure[GetServerInfoCall, GetServerInfoReply] {
 	return rpc.NewProcedure[GetServerInfoCall, GetServerInfoReply](10016, rpc.VersionDefault, c)
 }
@@ -68,4 +59,21 @@ func (procedures) SetMultiBlock(c SetMultiBlockCall) rpc.Procedure[SetMultiBlock
 
 func (procedures) GetExtendedAddress(c GetExtendedAddressCall) rpc.Procedure[GetExtendedAddressCall, GetExtendedAddressReply] {
 	return rpc.NewProcedure[GetExtendedAddressCall, GetExtendedAddressReply](10022, rpc.VersionDefault, c)
+}
+
+// --------------
+// ListProcedures
+// --------------
+
+var ListProcedures listProcedures
+
+type listProcedures struct{}
+
+func (listProcedures) ListProcessValueInfo(c *ListProcessValueInfoCall) rpc.ListProcedure[ProcessValueInfo, *ListProcessValueInfoCall, *ListProcessValueInfoReply] {
+	return rpc.NewListProcedure[ProcessValueInfo, *ListProcessValueInfoCall, *ListProcessValueInfoReply](10014, rpc.VersionDefault, c)
+}
+
+func (listProcedures) ListExtendedProcessValueInfo(c *ListExtendedProcessValueInfoCall) rpc.ListProcedure[ExtendedProcessValueInfo, *ListExtendedProcessValueInfoCall, *ListExtendedProcessValueInfoReply] {
+	c.extendedCallIdentifier = PvInfoExtendedCallIdentifier
+	return rpc.NewListProcedure[ExtendedProcessValueInfo, *ListExtendedProcessValueInfoCall, *ListExtendedProcessValueInfoReply](10014, rpc.VersionDefault, c)
 }

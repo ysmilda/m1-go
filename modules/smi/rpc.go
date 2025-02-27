@@ -133,9 +133,9 @@ type (
 
 	ExtendedLogin2Reply struct {
 		rpc.ReturnCode
-		UseerAccess res.UserAccess
-		DelayTime   time.Duration `m1binary:"length:4,unit:milliseconds,skip:4"` // 0=auto
-		UserData    []byte        `m1binary:"length:128"`
+		UserAccess res.UserAccess
+		DelayTime  time.Duration `m1binary:"length:4,unit:milliseconds,skip:4"` // 0=auto
+		UserData   []byte        `m1binary:"length:128"`
 	}
 
 	ExtendedRequestAccessCall struct {

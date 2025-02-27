@@ -41,33 +41,12 @@ func (r *ResModule) GetModuleInfo(module string) (*res.ModuleInfo, error) {
 
 // ListModules lists all modules installed on the target.
 func (r *ResModule) ListModules() ([]res.ModuleInfo, error) {
-	const amountPerCall = uint32(30)
-	index := uint32(0)
-	result := []res.ModuleInfo{}
-
-	for {
-		reply, err := call(
-			r.client,
-			r.info,
-			res.Procedures.ListModuleInfo(res.ListModuleInfoCall{
-				First: index,
-				Last:  index + amountPerCall - 1,
-			}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list modules: %w", err)
-		}
-
-		result = append(result, reply.Modules...)
-
-		length := uint32(len(reply.Modules))
-		index += length
-		if length != amountPerCall {
-			break
-		}
-	}
-
-	return result, nil
+	return listCall(
+		r.client,
+		r.info,
+		res.ListProcedures.ModuleInfo(&res.ListModuleInfoCall{}),
+		30,
+	)
 }
 
 // GetModuleNumber returns the module number of the target.

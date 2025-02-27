@@ -9,8 +9,8 @@ var Procedures = procedures{}
 type procedures struct{}
 
 // Required permission: smi.PermissionsQuerySystemInfo.
-func (procedures) ListCPUAddresses(c ListCPUAddressesCall) rpc.Procedure[ListCPUAddressesCall, ListCPUAddressesReply] {
-	return rpc.NewProcedure[ListCPUAddressesCall, ListCPUAddressesReply](100, rpc.VersionDefault, c)
+func (procedures) GetCPUAddresses(c GetCPUAddressesCall) rpc.Procedure[GetCPUAddressesCall, GetCPUAddressesReply] {
+	return rpc.NewProcedure[GetCPUAddressesCall, GetCPUAddressesReply](100, rpc.VersionDefault, c)
 }
 
 // Required permission: smi.PermissionsQuerySystemInfo.
@@ -19,23 +19,13 @@ func (procedures) CPUInfo(c CPUInfoCall) rpc.Procedure[CPUInfoCall, CPUInfoReply
 }
 
 // Required permission: smi.PermissionsQuerySystemInfo.
-func (procedures) ListSystemObjectInfo(c ListSystemObjectInfoCall) rpc.Procedure[ListSystemObjectInfoCall, ListSystemObjectInfoReply] {
-	return rpc.NewProcedure[ListSystemObjectInfoCall, ListSystemObjectInfoReply](104, rpc.VersionDefault, c)
-}
-
-// Required permission: smi.PermissionsQuerySystemInfo.
-func (procedures) ListIODriverInfo(c ListIODriverInfoCall) rpc.Procedure[ListIODriverInfoCall, ListIODriverInfoReply] {
-	return rpc.NewProcedure[ListIODriverInfoCall, ListIODriverInfoReply](106, rpc.VersionDefault, c)
+func (procedures) GetSystemObjectInfo(c GetSystemObjectInfoCall) rpc.Procedure[GetSystemObjectInfoCall, GetSystemObjectInfoReply] {
+	return rpc.NewProcedure[GetSystemObjectInfoCall, GetSystemObjectInfoReply](104, rpc.VersionDefault, c)
 }
 
 // Required permission: smi.PermissionsQuerySystemInfo.
 func (procedures) LogInfo(c LogInfoCall) rpc.Procedure[LogInfoCall, LogInfoReply] {
 	return rpc.NewProcedure[LogInfoCall, LogInfoReply](108, rpc.VersionDefault, c)
-}
-
-// Required permission: smi.PermissionsQuerySystemInfo.
-func (procedures) ListTaskInfo(c ListTaskInfoCall) rpc.Procedure[ListTaskInfoCall, ListTaskInfoReply] {
-	return rpc.NewProcedure[ListTaskInfoCall, ListTaskInfoReply](110, rpc.VersionDefault, c)
 }
 
 // Required permission: smi.PermissionsQuerySystemInfo.
@@ -51,11 +41,6 @@ func (procedures) TimeMeasurementOnOff(c TimeMeasurementOnOffCall) rpc.Procedure
 // Required permission: smi.PermissionsQuerySystemInfo.
 func (procedures) ApplicationName(c ApplicationNameCall) rpc.Procedure[ApplicationNameCall, ApplicationNameReply] {
 	return rpc.NewProcedure[ApplicationNameCall, ApplicationNameReply](116, rpc.VersionDefault, c)
-}
-
-// Required permission: smi.PermissionsQuerySystemInfo.
-func (procedures) ListCardInfo(c ListCardInfoCall) rpc.Procedure[ListCardInfoCall, ListCardInfoReply] {
-	return rpc.NewProcedure[ListCardInfoCall, ListCardInfoReply](120, rpc.VersionDefault, c)
 }
 
 // Required permission: smi.PermissionsReadConsole.
@@ -83,3 +68,26 @@ func (procedures) CPUUsageMeasurementOnOff(c CPUUsageMeasurementOnOffCall) rpc.P
 }
 
 // TODO: Finish list
+
+// --------------
+// ListProcedures
+// --------------
+
+var ListProcedures listProcedures
+
+type listProcedures struct{}
+
+// Required permission: smi.PermissionsQuerySystemInfo.
+func (listProcedures) IODriverInfo(c *IODriverInfoCall) rpc.ListProcedure[IODriverInfo, *IODriverInfoCall, *IODriverInfoReply] {
+	return rpc.NewListProcedure[IODriverInfo, *IODriverInfoCall, *IODriverInfoReply](106, rpc.VersionDefault, c)
+}
+
+// Required permission: smi.PermissionsQuerySystemInfo.
+func (listProcedures) TaskInfo(c *TaskInfoCall) rpc.ListProcedure[TaskInfo, *TaskInfoCall, *TaskInfoReply] {
+	return rpc.NewListProcedure[TaskInfo, *TaskInfoCall, *TaskInfoReply](110, rpc.VersionDefault, c)
+}
+
+// Required permission: smi.PermissionsQuerySystemInfo.
+func (listProcedures) CardInfo(c *CardInfoCall) rpc.ListProcedure[CardInfo, *CardInfoCall, *CardInfoReply] {
+	return rpc.NewListProcedure[CardInfo, *CardInfoCall, *CardInfoReply](120, rpc.VersionDefault, c)
+}
