@@ -34,6 +34,7 @@ type Tag struct {
 	// Used as zeroTerminated in the struct tag.
 	ZeroTerminated bool
 	TillEnd        bool
+	Allign4        bool
 }
 
 func parseTag(s string) Tag {
@@ -49,6 +50,7 @@ func parseTag(s string) Tag {
 		LengthRef:      mustFindString(s, "lengthRef"),
 		ZeroTerminated: mustFindBool(s, "zeroTerminated"),
 		TillEnd:        mustFindBool(s, "tillEnd"),
+		Allign4:        mustFindBool(s, "allign4"),
 	}
 
 	if t.Length != nil && t.LengthRef != nil {

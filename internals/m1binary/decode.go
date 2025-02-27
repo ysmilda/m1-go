@@ -189,7 +189,12 @@ func decodeField(v reflect.Value, data []byte, tag Tag) (int, error) { //nolint:
 			if err != nil {
 				return 0, fmt.Errorf("failed to set slice field: %w", err)
 			}
+
 			n += c
+
+			if tag.Allign4 {
+				n = (n + 3) & 0xfffffffc
+			}
 		}
 
 		return n, nil
