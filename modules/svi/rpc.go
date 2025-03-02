@@ -138,7 +138,7 @@ type (
 		rpc.ReturnCode    `m1binary:"skip:4"`
 		ContinuationPoint uint32 `m1binary:"skip:12"` // 0 = end
 		Count             uint32
-		ProcessValues     []ExtendedProcessValueInfo `m1binary:"lengthRef:Count"`
+		ProcessValues     []ExtendedProcessValueInfo `m1binary:"lengthRef:Count,allign4"`
 	}
 
 	GetServerInfoCall struct{}

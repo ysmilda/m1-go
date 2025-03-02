@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support for the RES module.
+- 
 
 ### Changed
 
-- 
+- Allow aligning messages during parsing 
+- Fix `svi.ExtendedProcessValueInfo` model tag
 
 ### Removed
 
 - 
 
+## [v0.1.0]
+
+- Initial release

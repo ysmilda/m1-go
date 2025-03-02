@@ -11,7 +11,7 @@ type ExtendedProcessValueInfo struct {
 	Format uint16
 	Length uint16
 	Count  uint32
-	Name   string `m1binary:"lengthRef:Count"`
+	Name   string `m1binary:"zeroTerminated"`
 }
 
 type ServerInfo struct {
