@@ -9,3 +9,8 @@ func (r ReturnCode) GetReturnCode() uint32 {
 type ReturnCoder interface {
 	GetReturnCode() uint32
 }
+
+type ListReturnCoder[T any] interface {
+	ReturnCoder
+	ListReplier[T]
+}

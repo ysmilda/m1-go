@@ -25,13 +25,9 @@ func newResModule(client *m1client.Client) *ResModule {
 }
 
 func (r *ResModule) GetModuleInfo(module string) (*res.ModuleInfo, error) {
-	reply, err := call(
-		r.client,
-		r.info,
-		res.Procedures.GetModuleInfo(res.ModuleInfoCall{
-			Name: module,
-		}),
-	)
+	reply, err := res.Procedures.GetModuleInfo(r.client, r.info, res.ModuleInfoCall{
+		Name: module,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get module info: %w", err)
 	}
@@ -41,25 +37,16 @@ func (r *ResModule) GetModuleInfo(module string) (*res.ModuleInfo, error) {
 
 // ListModules lists all modules installed on the target.
 func (r *ResModule) ListModules() ([]res.ModuleInfo, error) {
-	return listCall(
-		r.client,
-		r.info,
-		res.ListProcedures.ModuleInfo(&res.ListModuleInfoCall{}),
-		30,
-	)
+	return res.Procedures.ModuleInfo(r.client, r.info, &res.ListModuleInfoCall{}, 30)
 }
 
 // GetModuleNumber returns the module number of the target.
 // The ModuleNumber contains the module number of the target application and it's ports.
 // These are necessary for making RPC calls against that module.
 func (r *ResModule) GetModuleNumber(module string) (*res.ModuleNumber, error) {
-	reply, err := call(
-		r.client,
-		r.info,
-		res.Procedures.GetModuleNumber(res.ModuleNumberCall{
-			Name: module,
-		}),
-	)
+	reply, err := res.Procedures.GetModuleNumber(r.client, r.info, res.ModuleNumberCall{
+		Name: module,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get module number: %w", err)
 	}
@@ -68,13 +55,9 @@ func (r *ResModule) GetModuleNumber(module string) (*res.ModuleNumber, error) {
 
 // GetSystemInfo returns the system information of the target.
 func (r *ResModule) GetSystemInfo() (*res.SystemInfo, error) {
-	reply, err := call(
-		r.client,
-		r.info,
-		res.Procedures.GetSystemInfo(res.SystemInfoCall{
-			Toolname: toolName,
-		}),
-	)
+	reply, err := res.Procedures.GetSystemInfo(r.client, r.info, res.SystemInfoCall{
+		Toolname: toolName,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get system info: %w", err)
 	}
@@ -100,7 +83,7 @@ func (r *ResModule) Login(user, password string, loginChecker bool) (*res.Login,
 		c.Password = string(hash[:])
 	}
 
-	reply, err := call(r.client, r.info, res.Procedures.Login(c))
+	reply, err := res.Procedures.Login(r.client, r.info, c)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +114,7 @@ func (r *ResModule) Login2(
 		c.Password = string(hash[:])
 	}
 
-	reply, err := call(r.client, r.info, res.Procedures.Login2(c))
+	reply, err := res.Procedures.Login2(r.client, r.info, c)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +126,7 @@ func (r *ResModule) Login2(
 
 // Logout logs out the user from the target.
 func (r *ResModule) Logout() error {
-	_, err := call(r.client, r.info, res.Procedures.Logout(res.LogoutCall{}))
+	_, err := res.Procedures.Logout(r.client, r.info, res.LogoutCall{})
 	return err
 }
 
@@ -153,13 +136,9 @@ func (r *ResModule) Logout() error {
 // authentication data that is used for further communication with the target. It also contains the lifetime of the
 // session and the timeout of the session. If the session is not renewed within the timeout, the session is closed.
 func (r *ResModule) Open() (*res.Open, error) {
-	reply, err := call(
-		r.client,
-		r.info,
-		res.Procedures.OpenConnection(res.OpenCall{
-			RequestedSMISize: 0x7FFFFFFF,
-		}),
-	)
+	reply, err := res.Procedures.OpenConnection(r.client, r.info, res.OpenCall{
+		RequestedSMISize: 0x7FFFFFFF,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open: %w", err)
 	}
@@ -169,7 +148,7 @@ func (r *ResModule) Open() (*res.Open, error) {
 
 // Close closes the connection to the RES module on the target.
 func (r *ResModule) Close() error {
-	_, err := call(r.client, r.info, res.Procedures.CloseConnection(res.CloseCall{}))
+	_, err := res.Procedures.CloseConnection(r.client, r.info, res.CloseCall{})
 	return err
 }
 
@@ -179,13 +158,9 @@ func (r *ResModule) Close() error {
 // authentication data that is used for further communication with the target. It also contains the state of the
 // application and the system.
 func (r *ResModule) Renew() (*res.Renew, error) {
-	reply, err := call(
-		r.client,
-		r.info,
-		res.Procedures.RenewConnection(res.RenewCall{
-			RequestAuthenticationRenewal: true,
-		}),
-	)
+	reply, err := res.Procedures.RenewConnection(r.client, r.info, res.RenewCall{
+		RequestAuthenticationRenewal: true,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -195,16 +170,12 @@ func (r *ResModule) Renew() (*res.Renew, error) {
 
 // ExtendedPing sends an extended ping to the target.
 func (r *ResModule) ExtendedPing(ipMask net.IPMask) (*res.ExtPing, error) {
-	reply, err := call(
-		r.client,
-		r.info,
-		res.Procedures.ExtPing(res.ExtPingCall{
-			IPMask: ipMask,
-			Filter: res.FilterEqual,
-			Reply:  res.ReplyTypeIP,
-			Mode:   res.ReplyModeNormal,
-		}),
-	)
+	reply, err := res.Procedures.ExtPing(r.client, r.info, res.ExtPingCall{
+		IPMask: ipMask,
+		Filter: res.FilterEqual,
+		Reply:  res.ReplyTypeIP,
+		Mode:   res.ReplyModeNormal,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -220,13 +191,9 @@ func (r *ResModule) FlashLed() error {
 		return err
 	}
 
-	_, err = call(
-		r.client,
-		r.info,
-		res.Procedures.FlashLED(res.FlashLEDCall{
-			SerialNumber: reply.SerialNumber,
-		}),
-	)
+	_, err = res.Procedures.FlashLED(r.client, r.info, res.FlashLEDCall{
+		SerialNumber: reply.SerialNumber,
+	})
 
 	return err
 }

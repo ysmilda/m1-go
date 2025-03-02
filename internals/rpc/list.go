@@ -1,8 +1,28 @@
 package rpc
 
+// --------------
+// ListCaller
+// --------------
+
 type ListCaller interface {
-	SetFirst(uint32)
+	SetStart(uint32)
 	SetCount(uint32)
+}
+
+type Start uint32
+
+func (f *Start) SetStart(start uint32) {
+	*f = Start(start)
+}
+
+type Count uint32
+
+func (c *Count) SetCount(count uint32) {
+	*c = Count(count)
+}
+
+func (c Count) GetCount() uint32 {
+	return uint32(c)
 }
 
 var (
@@ -12,47 +32,22 @@ var (
 )
 
 type ListCallStartCount struct {
-	start uint32
-	count uint32
-}
-
-func (l *ListCallStartCount) SetFirst(first uint32) {
-	l.start = first
-}
-
-func (l *ListCallStartCount) SetCount(count uint32) {
-	l.count = count
+	Start
+	Count
 }
 
 type ListCallCountStart struct {
-	count uint32
-	start uint32
-}
-
-func (l *ListCallCountStart) SetFirst(first uint32) {
-	l.start = first
-}
-
-func (l *ListCallCountStart) SetCount(count uint32) {
-	l.count = count
+	Count
+	Start
 }
 
 type ListCallFirstLast struct {
-	first uint32
-	last  uint32
-}
-
-func (l *ListCallFirstLast) SetFirst(first uint32) {
-	l.first = first
+	Start
+	last uint32
 }
 
 func (l *ListCallFirstLast) SetCount(count uint32) {
-	l.last = l.first + count
-}
-
-type ListReturnCoder[T any] interface {
-	ReturnCoder
-	ListReplier[T]
+	l.last = uint32(l.Start) + count
 }
 
 type ListReplier[T any] interface {
@@ -61,42 +56,36 @@ type ListReplier[T any] interface {
 	GetValues() []T
 }
 
+// --------------
+// ListReplier
+// --------------
+
+type Values[T any] []T
+
+func (v Values[T]) GetValues() []T {
+	return v
+}
+
 var (
 	_ ListReplier[any] = &ListReplyCount[any]{}
 	_ ListReplier[any] = &ListReplyContinuationCount[any]{}
 )
 
 type ListReplyCount[T any] struct {
-	Count  uint32
-	Values []T `m1binary:"lengthRef:Count"`
-}
-
-func (l ListReplyCount[T]) GetCount() uint32 {
-	return l.Count
+	Count
+	Values[T] `m1binary:"lengthRef:Count"`
 }
 
 func (l ListReplyCount[T]) Done(step uint32) bool {
-	return l.Count < step
-}
-
-func (l *ListReplyCount[T]) GetValues() []T {
-	return l.Values
+	return uint32(l.Count) < step
 }
 
 type ListReplyContinuationCount[T any] struct {
 	ContinuationPoint uint32 `m1binary:"skip:12"`
-	Count             uint32
-	Values            []T `m1binary:"lengthRef:Count,allign4"`
-}
-
-func (l ListReplyContinuationCount[T]) GetCount() uint32 {
-	return l.Count
+	Count
+	Values[T] `m1binary:"lengthRef:Count,allign4"`
 }
 
 func (l ListReplyContinuationCount[T]) Done(step uint32) bool {
 	return l.ContinuationPoint == 0
-}
-
-func (l *ListReplyContinuationCount[T]) GetValues() []T {
-	return l.Values
 }

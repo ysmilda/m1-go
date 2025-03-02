@@ -8,6 +8,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/ysmilda/m1-go/internals/m1binary"
+	"github.com/ysmilda/m1-go/internals/m1client"
 	"github.com/ysmilda/m1-go/internals/m1errors"
 )
 
@@ -41,15 +42,28 @@ type Header struct {
 	Auth      []byte
 }
 
+type Module struct {
+	Number uint32
+	Port   uint16
+}
+
 // Call sends an RPC call to the target with the given header and procedure.
 // It packs and unpacks the call and reply objects and checks for errors.
-func Call[C any, R ReturnCoder](rw io.ReadWriter, header Header, procedure Procedure[C, R]) (*R, error) {
+func Call[C any, R ReturnCoder](client *m1client.Client, module Module, procedure Procedure[C, R]) (*R, error) {
+	conn := client.GetConnection(module.Port)
+	header := Header{
+		Module:    module.Number,
+		Version:   procedure.RPCVersion(),
+		Procedure: procedure.Procedure(),
+		Auth:      client.GetAuth(),
+	}
+
 	body, err := m1binary.Encode(procedure.Call)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse call: %w", err)
 	}
 
-	buf, err := call(rw, header, body)
+	buf, err := call(conn, header, body)
 	if err != nil {
 		return nil, fmt.Errorf("unable to make rpc call: %w", err)
 	}
@@ -68,21 +82,29 @@ func Call[C any, R ReturnCoder](rw io.ReadWriter, header Header, procedure Proce
 }
 
 func ListCall[T any, C ListCaller, R ListReturnCoder[T]](
-	rw io.ReadWriter, header Header, procedure ListProcedure[T, C, R], stepSize uint32,
+	client *m1client.Client, module Module, procedure ListProcedure[T, C, R], stepSize uint32,
 ) ([]T, error) {
 	result := []T{}
 	start := uint32(0)
+	conn := client.GetConnection(module.Port)
 
 	for {
-		procedure.Call.SetFirst(start)
+		procedure.Call.SetStart(start)
 		procedure.Call.SetCount(stepSize)
+
+		header := Header{
+			Module:    module.Number,
+			Version:   procedure.RPCVersion(),
+			Procedure: procedure.Procedure(),
+			Auth:      client.GetAuth(),
+		}
 
 		body, err := m1binary.Encode(procedure.Call)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse call: %w", err)
 		}
 
-		buf, err := call(rw, header, body)
+		buf, err := call(conn, header, body)
 		if err != nil {
 			return nil, fmt.Errorf("unable to make rpc call: %w", err)
 		}

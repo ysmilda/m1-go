@@ -18,7 +18,7 @@ type Client struct {
 	timeout time.Duration
 
 	// all connections for all modules. Every module has its own connection.
-	connections map[uint16]*conn
+	connections map[uint16]*Conn
 
 	auth          []byte
 	sessionID     uint32
@@ -30,7 +30,7 @@ func NewClient(ip net.IP, timeout time.Duration) *Client {
 	return &Client{
 		ip:            ip,
 		timeout:       timeout,
-		connections:   make(map[uint16]*conn),
+		connections:   make(map[uint16]*Conn),
 		maxCallLength: 2048,
 	}
 }
@@ -48,7 +48,7 @@ func (c Client) Close() error {
 }
 
 // GetConnection returns the connection with the given ID.
-func (c *Client) GetConnection(port uint16) *conn {
+func (c *Client) GetConnection(port uint16) *Conn {
 	connection, ok := c.connections[port]
 	if ok {
 		return connection
@@ -59,7 +59,7 @@ func (c *Client) GetConnection(port uint16) *conn {
 		return nil
 	}
 
-	connection = &conn{
+	connection = &Conn{
 		conn:    nc,
 		timeout: c.timeout,
 	}
@@ -99,19 +99,19 @@ func (c *Client) GetMaximumCallLength() int {
 	return int(c.maxCallLength - 40 - int32(len(c.auth)))
 }
 
-// conn is a wrapper around a net.Conn that adds some functionality for the M1 protocol.
-type conn struct {
+// Conn is a wrapper around a net.Conn that adds some functionality for the M1 protocol.
+type Conn struct {
 	conn    net.Conn
 	timeout time.Duration
 }
 
 // Close closes the underlying connection.
-func (c conn) Close() error {
+func (c Conn) Close() error {
 	return c.conn.Close()
 }
 
 // Read reads data from the connection and sets the read deadline if a timeout is set.
-func (c conn) Read(p []byte) (n int, err error) {
+func (c Conn) Read(p []byte) (n int, err error) {
 	// Set the read deadline if a timeout is set.
 	if c.timeout != 0 {
 		_ = c.conn.SetReadDeadline(time.Now().Add(c.timeout))
@@ -121,7 +121,7 @@ func (c conn) Read(p []byte) (n int, err error) {
 }
 
 // Write writes data to the connection and sets the write deadline if a timeout is set.
-func (c conn) Write(p []byte) (n int, err error) {
+func (c Conn) Write(p []byte) (n int, err error) {
 	// Set the write deadline if a timeout is set.
 	if c.timeout != 0 {
 		_ = c.conn.SetWriteDeadline(time.Now().Add(c.timeout))
