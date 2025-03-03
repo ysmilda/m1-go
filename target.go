@@ -1,19 +1,20 @@
 package m1
 
 import (
-	"errors"
+	"crypto/md5"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/ysmilda/m1-go/internals/m1client"
 	"github.com/ysmilda/m1-go/modules/msys"
+	"github.com/ysmilda/m1-go/modules/res"
+	"github.com/ysmilda/m1-go/modules/svi"
 )
 
-var defaultModules = map[string]struct{}{
-	"RES": {},
-	"VHD": {},
-}
+const (
+	toolName = "m1-go"
+)
 
 // Target represents a target device.
 // It's methods are convenience methods around the various modules on the target.
@@ -22,9 +23,8 @@ var defaultModules = map[string]struct{}{
 // The target should be closed after usage.
 type Target struct {
 	// RES - The resource handler manages software and hardware resources on the controller
-	RES *ResModule
-
-	Modules map[string]*Module
+	RES *res.Procedures
+	SVI *svi.Procedures
 
 	client *m1client.Client
 
@@ -40,12 +40,11 @@ type Target struct {
 func NewTarget(ip net.IP, timeout time.Duration) (*Target, error) {
 	client := m1client.NewClient(ip, timeout)
 
-	res := newResModule(client)
-
 	t := &Target{
-		client:  client,
-		RES:     res,
-		Modules: make(map[string]*Module),
+		client: client,
+
+		RES: res.NewProcedures(client),
+		SVI: svi.NewProcedures(client),
 	}
 
 	// Setup the connection to the target.
@@ -60,7 +59,7 @@ func NewTarget(ip net.IP, timeout time.Duration) (*Target, error) {
 // Close closes the target connection.
 // After closing the target, the target should not be used anymore.
 func (t *Target) Close() error {
-	err := t.RES.Close()
+	_, err := t.RES.CloseConnection(res.Module, res.CloseCall{})
 	if err != nil {
 		return err
 	}
@@ -87,12 +86,62 @@ func (t *Target) Login(user, password, toolName string) error {
 
 	// If the version is newer than 3.70.8-release we need to use the login2 procedure.
 	if t.msysVersion.Compare(msys.Version{Major: 3, Minor: 70, Patch: 8, ReleaseType: msys.Release}) >= 0 {
-		_, err := t.RES.Login2(user, password, t.loginChecker, 0)
+		_, err := t.login2(user, password, t.loginChecker)
 		return err
 	}
 
-	_, err := t.RES.Login(user, password, t.loginChecker)
+	_, err := t.login(user, password, t.loginChecker)
 	return err
+}
+
+func (t *Target) login(user, password string, loginChecker bool) (*res.Login, error) {
+	c := res.LoginCall{
+		SystemInfoCall: res.SystemInfoCall{
+			Toolname: toolName,
+		},
+		Username: user,
+		Password: password,
+	}
+
+	if !loginChecker {
+		hash := md5.Sum([]byte(password))
+		c.Password = string(hash[:])
+	}
+
+	reply, err := t.RES.Login(res.Module, c)
+	if err != nil {
+		return nil, err
+	}
+
+	t.client.SetAuth(reply.Auth, reply.AuthLen)
+
+	return &reply.Login, nil
+}
+
+func (t *Target) login2(
+	user, password string, loginChecker bool,
+) (*res.Login2, error) {
+	c := res.Login2Call{
+		SystemInfoCall: res.SystemInfoCall{
+			Toolname: toolName,
+		},
+		Username: user,
+		Password: password,
+	}
+
+	if !loginChecker {
+		hash := md5.Sum([]byte(password))
+		c.Password = string(hash[:])
+	}
+
+	reply, err := t.RES.Login2(res.Module, c)
+	if err != nil {
+		return nil, err
+	}
+
+	t.client.SetAuth(reply.Auth, reply.AuthLen)
+
+	return &reply.Login2, nil
 }
 
 // Logout logs out from the target.
@@ -101,33 +150,89 @@ func (t *Target) Logout() error {
 		return nil
 	}
 
-	return t.RES.Logout()
+	_, err := t.RES.Logout(res.Module, res.LogoutCall{})
+	return err
 }
 
-// ConnectModule connects to a custom module on the target.
-// It returns an error if the module is a default module or if the module can't be connected to.
-// The module can be accessed via the Modules map on the target.
-func (t *Target) ConnectModule(moduleName string) error {
-	if _, ok := defaultModules[moduleName]; ok {
-		return errors.New("use the target struct members for access to the default modules")
-	}
-
-	if _, ok := t.Modules[moduleName]; ok {
-		return nil
-	}
-
-	info, err := t.RES.GetModuleNumber(moduleName)
+// ListVariables returns a list of all variables of the module.
+// The returned variables are not initialized. To initialize them, use the VHD module on the target.
+func (t *Target) ListVariables(module string) ([]Variable, error) {
+	number, err := t.RES.GetModuleNumber(res.Module, res.ModuleNumberCall{
+		Name: module,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to get module number for %s: %w", moduleName, err)
+		return nil, err
 	}
 
-	t.Modules[moduleName] = newModule(t.client, moduleName, *info, t.msysVersion)
-	return nil
+	version425 := msys.Version{Major: 4, Minor: 25, Patch: 0, ReleaseType: msys.Release}
+	if t.msysVersion.Compare(version425) >= 0 {
+		return t.listVariables2(number.ModuleNumber, module)
+	} else {
+		return t.listVariables(number.ModuleNumber)
+	}
+}
+
+// listVariables2 returns a list of all variables of the module.
+// This is the preferred implementation for newer versions of the M1 controller.
+// It supports a maximum of 255 characters for the variable name.
+func (t *Target) listVariables2(module res.ModuleNumber, name string) ([]Variable, error) {
+	reply, err := t.SVI.ListExtendedProcessValueInfo(module, &svi.ListExtendedProcessValueInfoCall{
+		GetSubprocessValues: true,
+		PathLength:          1,
+		Path:                "", // Start from the root.
+	}, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	path := name
+	result := []Variable{}
+	for _, value := range reply {
+		if value.Flag == svi.FlagTypeDirectory {
+			path = fmt.Sprintf("%s/%s", name, value.Name)
+			continue
+		}
+
+		result = append(result, Variable{
+			Name: fmt.Sprintf("%s/%s", path, value.Name),
+			Variable: svi.Variable{
+				Format: value.Format,
+				Length: value.Length,
+			},
+		})
+	}
+
+	return result, nil
+}
+
+// listVariables returns a list of all variables of the module.
+// This is a fallback implementation for older versions of the M1 controller.
+// It supports a maximum of 64 characters for the variable name.
+func (t *Target) listVariables(module res.ModuleNumber) ([]Variable, error) {
+	reply, err := t.SVI.ListProcessValueInfo(module, &svi.ListProcessValueInfoCall{}, 29)
+	if err != nil {
+		return nil, err
+	}
+
+	result := []Variable{}
+	for _, value := range reply {
+		result = append(result, Variable{
+			Name: "RES/" + value.Name,
+			Variable: svi.Variable{
+				Format: value.Format,
+				Length: value.Length,
+			},
+		})
+	}
+
+	return result, nil
 }
 
 // connect connects to the target and initializes the target.
 func (t *Target) connect() error {
-	info, err := t.RES.GetSystemInfo()
+	info, err := t.RES.GetSystemInfo(res.Module, res.SystemInfoCall{
+		Toolname: toolName,
+	})
 	if err != nil {
 		return err
 	}
@@ -136,21 +241,20 @@ func (t *Target) connect() error {
 	t.loginRequired = info.LoginRequired
 	t.msysVersion = info.MSysVersion
 
-	// At the moment we opened the connection to the RES module we didn't know the version yet.
-	t.RES.msysVersion = t.msysVersion
-
 	// If the version is newer than 3.95.0-release we need to open the RES module.
 	if info.MSysVersion.Compare(msys.Version{Major: 3, Minor: 95, Patch: 0, ReleaseType: msys.Release}) >= 0 {
-		settings, err := t.RES.Open()
+		reply, err := t.RES.OpenConnection(res.Module, res.OpenCall{
+			RequestedSMISize: 0x7FFFFFFF,
+		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to open: %w", err)
 		}
 
-		t.sessionTimeout = settings.SessionTimeout
-		t.sessionLifetime = settings.SessionLifetime
+		t.sessionTimeout = reply.SessionTimeout
+		t.sessionLifetime = reply.SessionLifetime
 
-		t.client.SetMaximalCallLength(settings.SMIMessageSize)
-		t.client.SetAuth(settings.Auth, settings.AuthLen)
+		t.client.SetMaximalCallLength(reply.SMIMessageSize)
+		t.client.SetAuth(reply.Auth, reply.AuthLen)
 	}
 
 	return nil
