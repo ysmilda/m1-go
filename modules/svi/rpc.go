@@ -115,17 +115,17 @@ type (
 	}
 
 	ListProcessValueInfoCall struct {
-		rpc.ListCallStartCount
+		rpc.PaginatedCallStartCount
 	}
 
 	ListProcessValueInfoReply struct {
 		rpc.ReturnCode
-		rpc.ListReplyCount[ProcessValueInfo]
+		rpc.PaginatedReplyCount[ProcessValueInfo]
 	}
 
 	ListExtendedProcessValueInfoCall struct {
 		extendedCallIdentifier uint32 // Is set to svi.PvInfoExtendedCallIdentifier
-		rpc.ListCallCountStart
+		rpc.PaginatedCallCountStart
 		GetSubprocessValues bool `m1binary:"skip:11"`
 		PathLength          uint32
 		Path                string `m1binary:"lengthRef:PathLength"`
@@ -133,7 +133,7 @@ type (
 
 	ListExtendedProcessValueInfoReply struct {
 		rpc.ReturnCode `m1binary:"skip:4"`
-		rpc.ListReplyContinuationCount[ExtendedProcessValueInfo]
+		rpc.PaginatedReplyContinuationCount[ExtendedProcessValueInfo]
 	}
 
 	GetServerInfoCall struct{}

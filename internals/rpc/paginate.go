@@ -4,7 +4,7 @@ package rpc
 // ListCaller
 // --------------
 
-type ListCaller interface {
+type PaginatedCaller interface {
 	SetStart(uint32)
 	SetCount(uint32)
 }
@@ -26,31 +26,31 @@ func (c Count) GetCount() uint32 {
 }
 
 var (
-	_ ListCaller = &ListCallStartCount{}
-	_ ListCaller = &ListCallCountStart{}
-	_ ListCaller = &ListCallFirstLast{}
+	_ PaginatedCaller = &PaginatedCallStartCount{}
+	_ PaginatedCaller = &PaginatedCallCountStart{}
+	_ PaginatedCaller = &PaginatedCallFirstLast{}
 )
 
-type ListCallStartCount struct {
+type PaginatedCallStartCount struct {
 	Start
 	Count
 }
 
-type ListCallCountStart struct {
+type PaginatedCallCountStart struct {
 	Count
 	Start
 }
 
-type ListCallFirstLast struct {
+type PaginatedCallFirstLast struct {
 	Start
 	last uint32
 }
 
-func (l *ListCallFirstLast) SetCount(count uint32) {
+func (l *PaginatedCallFirstLast) SetCount(count uint32) {
 	l.last = uint32(l.Start) + count
 }
 
-type ListReplier[T any] interface {
+type PaginatedReplier[T any] interface {
 	GetCount() uint32
 	Done(uint32) bool
 	GetValues() []T
@@ -67,25 +67,25 @@ func (v Values[T]) GetValues() []T {
 }
 
 var (
-	_ ListReplier[any] = &ListReplyCount[any]{}
-	_ ListReplier[any] = &ListReplyContinuationCount[any]{}
+	_ PaginatedReplier[any] = &PaginatedReplyCount[any]{}
+	_ PaginatedReplier[any] = &PaginatedReplyContinuationCount[any]{}
 )
 
-type ListReplyCount[T any] struct {
+type PaginatedReplyCount[T any] struct {
 	Count
 	Values[T] `m1binary:"lengthRef:Count"`
 }
 
-func (l ListReplyCount[T]) Done(step uint32) bool {
+func (l PaginatedReplyCount[T]) Done(step uint32) bool {
 	return uint32(l.Count) < step
 }
 
-type ListReplyContinuationCount[T any] struct {
+type PaginatedReplyContinuationCount[T any] struct {
 	ContinuationPoint uint32 `m1binary:"skip:12"`
 	Count
 	Values[T] `m1binary:"lengthRef:Count,allign4"`
 }
 
-func (l ListReplyContinuationCount[T]) Done(step uint32) bool {
+func (l PaginatedReplyContinuationCount[T]) Done(step uint32) bool {
 	return l.ContinuationPoint == 0
 }

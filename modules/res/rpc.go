@@ -23,12 +23,12 @@ type (
 	}
 
 	ListModuleInfoCall struct {
-		rpc.ListCallFirstLast
+		rpc.PaginatedCallFirstLast
 	}
 
 	ListModuleInfoReply struct {
 		rpc.ReturnCode
-		rpc.ListReplyCount[ModuleInfo]
+		rpc.PaginatedReplyCount[ModuleInfo]
 	}
 
 	ExtendedModuleInfoCall struct {
@@ -41,12 +41,12 @@ type (
 	}
 
 	ExtendedModuleInfoListCall struct {
-		rpc.ListCallFirstLast
+		rpc.PaginatedCallFirstLast
 	}
 
 	ExtendedModuleInfoListReply struct {
 		rpc.ReturnCode
-		rpc.ListReplyCount[ExtendedModuleInfo]
+		rpc.PaginatedReplyCount[ExtendedModuleInfo]
 	}
 
 	ModuleChildCall struct {
@@ -159,7 +159,7 @@ type (
 	}
 
 	CloseCall struct {
-		Spare []byte `m1binary:"length:8"`
+		spare []byte `m1binary:"length:8"`
 	}
 
 	CloseReply struct {

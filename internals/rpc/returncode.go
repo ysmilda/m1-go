@@ -10,7 +10,7 @@ type ReturnCoder interface {
 	GetReturnCode() uint32
 }
 
-type ListReturnCoder[T any] interface {
+type PaginatedReturnCoder[T any] interface {
 	ReturnCoder
-	ListReplier[T]
+	PaginatedReplier[T]
 }

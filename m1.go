@@ -1,7 +1,6 @@
 package m1
 
 import (
-	"github.com/ysmilda/m1-go/internals/m1client"
 	"github.com/ysmilda/m1-go/internals/rpc"
 	"github.com/ysmilda/m1-go/modules/res"
 )
@@ -9,25 +8,11 @@ import (
 func Call[C any, R rpc.ReturnCoder](
 	target *Target, info res.ModuleNumber, procedure rpc.Procedure[C, R],
 ) (*R, error) {
-	return call(target.client, info, procedure)
+	return rpc.Call(target.client, rpc.Module{Number: info.ModuleNumber, Port: info.Port}, procedure)
 }
 
-func ListCall[T any, C rpc.ListCaller, R rpc.ListReturnCoder[T]](
-	target *Target, info res.ModuleNumber, procedure rpc.ListProcedure[T, C, R], stepSize uint32,
+func PaginatedCall[T any, C rpc.PaginatedCaller, R rpc.PaginatedReturnCoder[T]](
+	target *Target, info res.ModuleNumber, procedure rpc.PaginatedProcedure[T, C, R], pageSize uint32,
 ) ([]T, error) {
-	return listCall(target.client, info, procedure, stepSize)
-}
-
-// call is a helper function to call a procedure on the target.
-func call[C any, R rpc.ReturnCoder](
-	client *m1client.Client, info res.ModuleNumber, procedure rpc.Procedure[C, R],
-) (*R, error) {
-	return rpc.Call(client, rpc.Module{Number: info.ModuleNumber, Port: info.Port}, procedure)
-}
-
-// call is a helper function to call a procedure on the target.
-func listCall[T any, C rpc.ListCaller, R rpc.ListReturnCoder[T]](
-	client *m1client.Client, info res.ModuleNumber, procedure rpc.ListProcedure[T, C, R], stepSize uint32,
-) ([]T, error) {
-	return rpc.ListCall(client, rpc.Module{Number: info.ModuleNumber, Port: info.Port}, procedure, stepSize)
+	return rpc.PaginatedCall(target.client, rpc.Module{Number: info.ModuleNumber, Port: info.Port}, procedure, pageSize)
 }

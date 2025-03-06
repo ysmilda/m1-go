@@ -10,14 +10,14 @@ import (
 
 type (
 	CardInfoCall struct {
-		rpc.ListCallFirstLast
+		rpc.PaginatedCallFirstLast
 		filter uint32 // Must be zero
 	}
 
 	CardInfoReply struct {
 		rpc.ReturnCode
 		Last bool `m1binary:"skip:3"`
-		rpc.ListReplyCount[CardInfo]
+		rpc.PaginatedReplyCount[CardInfo]
 	}
 
 	GetCPUAddressesCall struct {
@@ -51,12 +51,12 @@ type (
 	}
 
 	IODriverInfoCall struct {
-		rpc.ListCallFirstLast
+		rpc.PaginatedCallFirstLast
 	}
 
 	IODriverInfoReply struct {
 		rpc.ReturnCode
-		rpc.ListReplyCount[IODriverInfo]
+		rpc.PaginatedReplyCount[IODriverInfo]
 	}
 
 	LogInfoCall struct {
@@ -72,17 +72,17 @@ type (
 	}
 
 	TaskInfoCall struct {
-		rpc.ListCallFirstLast
+		rpc.PaginatedCallFirstLast
 		spare uint32 // Must be zero
 	}
 
 	TaskInfoReply struct {
 		rpc.ReturnCode
 		Last bool `m1binary:"skip:3"`
-		// TODO: With the current ListCall implementation these values are thrown away, is there a way to keep them?
+		// TODO: With the current PaginatedCall implementation these values are thrown away, is there a way to keep them?
 		TimeTotal int64  // clockcycles since power up
 		TimeUnits uint32 // clockcyles per microsecond
-		rpc.ListReplyCount[TaskInfo]
+		rpc.PaginatedReplyCount[TaskInfo]
 	}
 
 	ListExtendedTaskInfoCall struct {

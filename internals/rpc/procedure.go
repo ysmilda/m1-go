@@ -22,26 +22,26 @@ func (p Procedure[C, R]) RPCVersion() Version {
 	return p.version
 }
 
-type ListProcedure[T any, C ListCaller, R ListReplier[T]] struct {
+type PaginatedProcedure[T any, C PaginatedCaller, R PaginatedReplier[T]] struct {
 	procedure uint32
 	version   Version
 	Call      C
 }
 
-func NewListProcedure[T any, C ListCaller, R ListReturnCoder[T]](
+func NewPaginatedProcedure[T any, C PaginatedCaller, R PaginatedReturnCoder[T]](
 	procedure uint32, version Version, call C,
-) ListProcedure[T, C, R] {
-	return ListProcedure[T, C, R]{
+) PaginatedProcedure[T, C, R] {
+	return PaginatedProcedure[T, C, R]{
 		procedure: procedure,
 		version:   version,
 		Call:      call,
 	}
 }
 
-func (p ListProcedure[T, C, R]) Procedure() uint32 {
+func (p PaginatedProcedure[T, C, R]) Procedure() uint32 {
 	return p.procedure
 }
 
-func (p ListProcedure[T, C, R]) RPCVersion() Version {
+func (p PaginatedProcedure[T, C, R]) RPCVersion() Version {
 	return p.version
 }

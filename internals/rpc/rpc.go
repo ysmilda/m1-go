@@ -81,8 +81,8 @@ func Call[C any, R ReturnCoder](client *m1client.Client, module Module, procedur
 	return reply, nil
 }
 
-func ListCall[T any, C ListCaller, R ListReturnCoder[T]](
-	client *m1client.Client, module Module, procedure ListProcedure[T, C, R], stepSize uint32,
+func PaginatedCall[T any, C PaginatedCaller, R PaginatedReturnCoder[T]](
+	client *m1client.Client, module Module, procedure PaginatedProcedure[T, C, R], pageSize uint32,
 ) ([]T, error) {
 	result := []T{}
 	start := uint32(0)
@@ -90,7 +90,7 @@ func ListCall[T any, C ListCaller, R ListReturnCoder[T]](
 
 	for {
 		procedure.Call.SetStart(start)
-		procedure.Call.SetCount(stepSize)
+		procedure.Call.SetCount(pageSize)
 
 		header := Header{
 			Module:    module.Number,
@@ -122,7 +122,7 @@ func ListCall[T any, C ListCaller, R ListReturnCoder[T]](
 		result = append(result, (*reply).GetValues()...)
 		start += (*reply).GetCount()
 
-		if (*reply).Done(stepSize) {
+		if (*reply).Done(pageSize) {
 			break
 		}
 	}
