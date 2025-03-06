@@ -9,24 +9,22 @@ import (
 )
 
 type (
-	ListCardInfoCall struct {
-		First  uint32
-		Last   uint32
+	CardInfoCall struct {
+		rpc.PaginatedCallFirstLast
 		filter uint32 // Must be zero
 	}
 
-	ListCardInfoReply struct {
+	CardInfoReply struct {
 		rpc.ReturnCode
-		Last      bool `m1binary:"skip:3"`
-		Count     uint32
-		CardInfos []CardInfo `m1binary:"lengthRef:Count"`
+		Last bool `m1binary:"skip:3"`
+		rpc.PaginatedReplyCount[CardInfo]
 	}
 
-	ListCPUAddressesCall struct {
+	GetCPUAddressesCall struct {
 		parameter uint32 // Must be zero
 	}
 
-	ListCPUAddressesReply struct {
+	GetCPUAddressesReply struct {
 		rpc.ReturnCode
 		CurrentIndex uint32
 		Count        uint32
@@ -42,25 +40,23 @@ type (
 		CPUInfo
 	}
 
-	ListSystemObjectInfoCall struct {
+	GetSystemObjectInfoCall struct {
 		parameter uint32 // Must be zero
 	}
 
-	ListSystemObjectInfoReply struct {
+	GetSystemObjectInfoReply struct {
 		rpc.ReturnCode
 		Count  uint32
 		Object []SystemObjectInfo `m1binary:"lengthRef:Count"`
 	}
 
-	ListIODriverInfoCall struct {
-		FirstIndex uint32
-		LastIndex  uint32
+	IODriverInfoCall struct {
+		rpc.PaginatedCallFirstLast
 	}
 
-	ListIODriverInfoReply struct {
+	IODriverInfoReply struct {
 		rpc.ReturnCode
-		Count   uint32
-		Objects []IODriverInfo `m1binary:"lengthRef:Count"`
+		rpc.PaginatedReplyCount[IODriverInfo]
 	}
 
 	LogInfoCall struct {
@@ -75,19 +71,18 @@ type (
 		Filename          string `m1binary:"length:84"`
 	}
 
-	ListTaskInfoCall struct {
-		FirstIndex uint32
-		LastIndex  uint32
-		spare      uint32 // Must be zero
+	TaskInfoCall struct {
+		rpc.PaginatedCallFirstLast
+		spare uint32 // Must be zero
 	}
 
-	ListTaskInfoReply struct {
+	TaskInfoReply struct {
 		rpc.ReturnCode
-		Last      bool   `m1binary:"skip:3"`
+		Last bool `m1binary:"skip:3"`
+		// TODO: With the current PaginatedCall implementation these values are thrown away, is there a way to keep them?
 		TimeTotal int64  // clockcycles since power up
 		TimeUnits uint32 // clockcyles per microsecond
-		Count     uint32
-		Objects   []TaskInfo `m1binary:"lengthRef:Count"`
+		rpc.PaginatedReplyCount[TaskInfo]
 	}
 
 	ListExtendedTaskInfoCall struct {
@@ -280,3 +275,11 @@ type (
 		Configurations      []ConfigurationInfo `m1binary:"lengthRef:Count"`
 	}
 )
+
+func (c CardInfoReply) Done(uint32) bool {
+	return c.Last
+}
+
+func (t TaskInfoReply) Done(uint32) bool {
+	return t.Last
+}

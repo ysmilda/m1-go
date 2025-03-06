@@ -7,7 +7,7 @@ import (
 	"reflect"
 
 	"github.com/ysmilda/m1-go/internals/m1binary"
-	"github.com/ysmilda/m1-go/internals/m1client"
+	"github.com/ysmilda/m1-go/modules/res"
 	"github.com/ysmilda/m1-go/modules/svi"
 )
 
@@ -17,16 +17,16 @@ type Variable struct {
 	svi.Variable
 
 	initialized bool
-	module      *Module
-	client      *m1client.Client
+	module      res.ModuleNumber
+	target      *Target
 }
 
 // NewVariable creates a new variable on the given module with the given name.
-func NewVariable(target *Target, module *Module, name string) (*Variable, error) {
+func NewVariable(target *Target, module res.ModuleNumber, name string) (*Variable, error) {
 	v := &Variable{
 		Name:   name,
 		module: module,
-		client: target.client,
+		target: target,
 	}
 
 	err := v.initialize()
@@ -38,9 +38,9 @@ func NewVariable(target *Target, module *Module, name string) (*Variable, error)
 }
 
 func (v *Variable) initialize() error {
-	reply, err := call(v.client, v.module.info, svi.Procedures.GetExtendedAddress(svi.GetExtendedAddressCall{
+	reply, err := v.target.SVI.GetExtendedAddress(v.module, svi.GetExtendedAddressCall{
 		Name: v.Name,
-	}))
+	})
 	if err != nil {
 		return err
 	}
@@ -64,11 +64,11 @@ func (v Variable) String() string {
 
 	if v.IsBlock() {
 		return fmt.Sprintf(
-			"(%s) %s: %T[%d] (%s)",
-			v.module.name, v.Name, reflect.ValueOf(t).Elem().Interface(), v.GetArrayLength(), rw,
+			"%s: %T[%d] (%s)",
+			v.Name, reflect.ValueOf(t).Elem().Interface(), v.GetArrayLength(), rw,
 		)
 	}
-	return fmt.Sprintf("(%s) %s: %T (%s)", v.module.name, v.Name, reflect.ValueOf(t).Elem().Interface(), rw)
+	return fmt.Sprintf("%s: %T (%s)", v.Name, reflect.ValueOf(t).Elem().Interface(), rw)
 }
 
 func (v *Variable) SetValue(value any) error {
@@ -95,10 +95,10 @@ func (v *Variable) SetValue(value any) error {
 	}
 	buf = append(buf, make([]byte, 4-len(buf))...)
 
-	_, err = call(v.client, v.module.info, svi.Procedures.SetValue(svi.SetValueCall{
+	_, err = v.target.SVI.SetValue(v.module, svi.SetValueCall{
 		Address: v.Address,
 		Value:   binary.LittleEndian.Uint32(buf),
-	}))
+	})
 	return err
 }
 
@@ -115,9 +115,9 @@ func (v *Variable) GetValue() (any, error) {
 		return nil, errors.New("getvalue not yet implemented for block values")
 	}
 
-	reply, err := call(v.client, v.module.info, svi.Procedures.GetValue(svi.GetValueCall{
+	reply, err := v.target.SVI.GetValue(v.module, svi.GetValueCall{
 		Address: v.Address,
-	}))
+	})
 	if err != nil {
 		return nil, err
 	}

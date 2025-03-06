@@ -3,96 +3,101 @@
 //nolint:lll
 package res
 
-import "github.com/ysmilda/m1-go/internals/rpc"
+import (
+	"github.com/ysmilda/m1-go/internals/m1client"
+	"github.com/ysmilda/m1-go/internals/rpc"
+)
 
-var Procedures = procedures{}
-
-type procedures struct{}
-
-func (procedures) GetModuleInfo(c ModuleInfoCall) rpc.Procedure[ModuleInfoCall, ModuleInfoReply] {
-	return rpc.NewProcedure[ModuleInfoCall, ModuleInfoReply](104, rpc.VersionDefault, c)
+func NewProcedures(client *m1client.Client) *Procedures {
+	return &Procedures{
+		client: client,
+	}
 }
 
-func (procedures) ListModuleInfo(c ListModuleInfoCall) rpc.Procedure[ListModuleInfoCall, ListModuleInfoReply] {
-	return rpc.NewProcedure[ListModuleInfoCall, ListModuleInfoReply](106, rpc.VersionDefault, c)
+type Procedures struct {
+	client *m1client.Client
 }
 
-func (procedures) RequestModuleAccess(c ModuleAccessCall) rpc.Procedure[ModuleAccessCall, ModuleAccessReply] {
-	return rpc.NewProcedure[ModuleAccessCall, ModuleAccessReply](108, rpc.VersionDefault, c)
+func (p *Procedures) GetModuleInfo(c ModuleInfoCall) (*ModuleInfoReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ModuleInfoCall, ModuleInfoReply](104, rpc.VersionDefault, c))
 }
 
-func (procedures) ReleaseModuleAccess(c ModuleFreeCall) rpc.Procedure[ModuleFreeCall, ModuleFreeReply] {
-	return rpc.NewProcedure[ModuleFreeCall, ModuleFreeReply](110, rpc.VersionDefault, c)
+func (p *Procedures) RequestModuleAccess(c ModuleAccessCall) (*ModuleAccessReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ModuleAccessCall, ModuleAccessReply](108, rpc.VersionDefault, c))
 }
 
-func (procedures) GetModuleNumber(c ModuleNumberCall) rpc.Procedure[ModuleNumberCall, ModuleNumberReply] {
-	return rpc.NewProcedure[ModuleNumberCall, ModuleNumberReply](112, rpc.VersionDefault, c)
+func (p *Procedures) ReleaseModuleAccess(c ModuleFreeCall) (*ModuleFreeReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ModuleFreeCall, ModuleFreeReply](110, rpc.VersionDefault, c))
 }
 
-func (procedures) GetExtendedModuleInfo(
-	c ExtendedModuleInfoCall,
-) rpc.Procedure[ExtendedModuleInfoCall, ExtendedModuleInfoReply] {
-	return rpc.NewProcedure[ExtendedModuleInfoCall, ExtendedModuleInfoReply](116, rpc.VersionDefault, c)
+func (p *Procedures) GetModuleNumber(c ModuleNumberCall) (*ModuleNumberReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ModuleNumberCall, ModuleNumberReply](112, rpc.VersionDefault, c))
 }
 
-func (procedures) ListExtendedModuleInfo(
-	c ExtendedModuleInfoListCall,
-) rpc.Procedure[ExtendedModuleInfoListCall, ExtendedModuleInfoListReply] {
-	return rpc.NewProcedure[ExtendedModuleInfoListCall, ExtendedModuleInfoListReply](118, rpc.VersionDefault, c)
+func (p *Procedures) GetExtendedModuleInfo(c ExtendedModuleInfoCall) (*ExtendedModuleInfoReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ExtendedModuleInfoCall, ExtendedModuleInfoReply](116, rpc.VersionDefault, c))
 }
 
-func (procedures) ListModuleChildTasks(
-	c ModuleChildListCall,
-) rpc.Procedure[ModuleChildListCall, ModuleChildListReply] {
-	return rpc.NewProcedure[ModuleChildListCall, ModuleChildListReply](120, rpc.VersionDefault, c)
+func (p *Procedures) ListModuleChildTasks(c ModuleChildCall) (*ModuleChildReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ModuleChildCall, ModuleChildReply](120, rpc.VersionDefault, c))
 }
 
-func (procedures) ListModuleTasks(
-	c ModuleTaskListCall,
-) rpc.Procedure[ModuleTaskListCall, ModuleTaskListReply] {
-	return rpc.NewProcedure[ModuleTaskListCall, ModuleTaskListReply](122, rpc.VersionDefault, c)
+func (p *Procedures) ListModuleTasks(c ModuleTaskCall) (*ModuleTaskReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ModuleTaskCall, ModuleTaskReply](122, rpc.VersionDefault, c))
 }
 
 // TODO: Add missing procedures
 
-func (procedures) GetSystemInfo(c SystemInfoCall) rpc.Procedure[SystemInfoCall, SystemInfoReply] {
-	return rpc.NewProcedure[SystemInfoCall, SystemInfoReply](282, rpc.VersionRES, c)
+func (p *Procedures) GetSystemInfo(c SystemInfoCall) (*SystemInfoReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[SystemInfoCall, SystemInfoReply](282, rpc.VersionRES, c))
 }
 
-func (procedures) Login(c LoginCall) rpc.Procedure[LoginCall, LoginReply] {
-	return rpc.NewProcedure[LoginCall, LoginReply](284, rpc.VersionRES, c)
+func (p *Procedures) Login(c LoginCall) (*LoginReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[LoginCall, LoginReply](284, rpc.VersionRES, c))
 }
 
-func (procedures) Logout(c LogoutCall) rpc.Procedure[LogoutCall, LogoutReply] {
-	return rpc.NewProcedure[LogoutCall, LogoutReply](286, rpc.VersionRES, c)
-}
-
-// TODO: Add missing procedures
-
-func (procedures) Login2(c Login2Call) rpc.Procedure[Login2Call, Login2Reply] {
-	return rpc.NewProcedure[Login2Call, Login2Reply](304, rpc.VersionRES, c)
-}
-
-func (procedures) OpenConnection(c OpenCall) rpc.Procedure[OpenCall, OpenReply] {
-	return rpc.NewProcedure[OpenCall, OpenReply](306, rpc.VersionRES, c)
-}
-
-func (procedures) CloseConnection(c CloseCall) rpc.Procedure[CloseCall, CloseReply] {
-	return rpc.NewProcedure[CloseCall, CloseReply](308, rpc.VersionRES, c)
-}
-
-func (procedures) RenewConnection(c RenewCall) rpc.Procedure[RenewCall, RenewReply] {
-	return rpc.NewProcedure[RenewCall, RenewReply](310, rpc.VersionRES, c)
+func (p *Procedures) Logout(c LogoutCall) (*LogoutReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[LogoutCall, LogoutReply](286, rpc.VersionRES, c))
 }
 
 // TODO: Add missing procedures
 
-func (procedures) ExtPing(c ExtPingCall) rpc.Procedure[ExtPingCall, ExtPingReply] {
-	return rpc.NewProcedure[ExtPingCall, ExtPingReply](320, rpc.VersionDefault, c)
+func (p *Procedures) Login2(c Login2Call) (*Login2Reply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[Login2Call, Login2Reply](304, rpc.VersionRES, c))
+}
+
+func (p *Procedures) OpenConnection(c OpenCall) (*OpenReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[OpenCall, OpenReply](306, rpc.VersionRES, c))
+}
+
+func (p *Procedures) CloseConnection(c CloseCall) (*CloseReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[CloseCall, CloseReply](308, rpc.VersionRES, c))
+}
+
+func (p *Procedures) RenewConnection(c RenewCall) (*RenewReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[RenewCall, RenewReply](310, rpc.VersionRES, c))
 }
 
 // TODO: Add missing procedures
 
-func (procedures) FlashLED(c FlashLEDCall) rpc.Procedure[FlashLEDCall, FlashLEDReply] {
-	return rpc.NewProcedure[FlashLEDCall, FlashLEDReply](324, rpc.VersionDefault, c)
+func (p *Procedures) ExtPing(c ExtPingCall) (*ExtPingReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[ExtPingCall, ExtPingReply](320, rpc.VersionDefault, c))
+}
+
+// TODO: Add missing procedures
+
+func (p *Procedures) FlashLED(c FlashLEDCall) (*FlashLEDReply, error) {
+	return rpc.Call(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewProcedure[FlashLEDCall, FlashLEDReply](324, rpc.VersionDefault, c))
+}
+
+// --------------
+// Paginated procedures
+// --------------
+
+func (p *Procedures) ModuleInfo(c *ListModuleInfoCall, pageSize uint32) ([]ModuleInfo, error) {
+	return rpc.PaginatedCall(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewPaginatedProcedure[ModuleInfo, *ListModuleInfoCall, *ListModuleInfoReply](106, rpc.VersionDefault, c), pageSize)
+}
+
+func (p *Procedures) ExtendedModuleInfo(c *ExtendedModuleInfoListCall, pageSize uint32) ([]ExtendedModuleInfo, error) {
+	return rpc.PaginatedCall(p.client, rpc.Module{Number: Module.ModuleNumber, Port: Module.Port}, rpc.NewPaginatedProcedure[ExtendedModuleInfo, *ExtendedModuleInfoListCall, *ExtendedModuleInfoListReply](118, rpc.VersionDefault, c), pageSize)
 }

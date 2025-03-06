@@ -1,15 +1,5 @@
 package rpc
 
-type ReturnCode int32
-
-func (r ReturnCode) GetReturnCode() uint32 {
-	return uint32(r)
-}
-
-type ReturnCoder interface {
-	GetReturnCode() uint32
-}
-
 type Procedure[C any, R ReturnCoder] struct {
 	procedure uint32
 	version   Version
@@ -29,5 +19,29 @@ func (p Procedure[C, R]) Procedure() uint32 {
 }
 
 func (p Procedure[C, R]) RPCVersion() Version {
+	return p.version
+}
+
+type PaginatedProcedure[T any, C PaginatedCaller, R PaginatedReplier[T]] struct {
+	procedure uint32
+	version   Version
+	Call      C
+}
+
+func NewPaginatedProcedure[T any, C PaginatedCaller, R PaginatedReturnCoder[T]](
+	procedure uint32, version Version, call C,
+) PaginatedProcedure[T, C, R] {
+	return PaginatedProcedure[T, C, R]{
+		procedure: procedure,
+		version:   version,
+		Call:      call,
+	}
+}
+
+func (p PaginatedProcedure[T, C, R]) Procedure() uint32 {
+	return p.procedure
+}
+
+func (p PaginatedProcedure[T, C, R]) RPCVersion() Version {
 	return p.version
 }

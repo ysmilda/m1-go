@@ -6,6 +6,9 @@ The implementation is based on the source code that is available with the Bachma
 
 The package is still under development and not all functionality is implemented yet. The package is tested with a Bachmann M1 controller running MSys version `4.50.99 Release`. An effort will be made to keep the package compatible with newer versions of the MSys software.
 
+> [!NOTE]
+> The package is currently versioned as pre release (e.g v0.x) due to the fact that I'm not yet fully happy with the naming of the functions. These are subject to change. However the implementation itself is production ready.
+
 ## Installation
 
 The package can be installed using the `go get` command:
@@ -16,58 +19,46 @@ go get github.com/ysmilda/m1-go
 
 ## Usage
 
-The package provides an interface to interact with the M1 controller. The interface is based on the `Target` struct. The `Target` struct provides methods to connect to the controller, retrieve information from the controller and to send commands to the controller. It is split up in to the various modules that exist on the controller. These can be accessed as members of the `Target` struct.
+This package provides an interface to interact with the M1 controller. This interface is available through the `Target` struct. This contains communication instances of the supported modules as well as some helper functions for easy use.
 
-The following example shows how to connect to the controller and retrieve the controller information:
+
+The following example shows how to connect to the controller and retrieve the variables for a module:
 
 ```go
-t, err := m1.NewTarget(net.IPv4(192, 168, 180, 91), 5*time.Second)
+t, err := m1.NewTarget(net.IP{192, 168, 1, 1}, 1*time.Second)
 if err != nil {
 	// ...
 }
 defer t.Close()
 
-info, err := t.RES.GetSystemInfo()
+err = t.Login("user", "password")
 if err != nil {
 	// ...
 }
 
-err = t.Login("user", "password", "m1-go")
-if err != nil {
-	// ...
-}
-
-modules, err := t.RES.ListModules()
+variables, err := t.ListVariables("Module")
 if err != nil {
 	// ...
 }
 ```
 
-However the package also allows direct access to the modules. Here you can choose to manage everything yourself or to use the `Target` struct to setup the connection and authentication. The following example shows how to connect to the controller and retrieve the controller information using the `RES` module:
+The various communication instances need to be targeted at a specific module. To do this a `ModuleNumber` needs to be retrieved. 
 
 ```go
-target, err := m1.NewTarget(net.IPv4(192, 168, 180, 91), 5*time.Second)
-if err != nil {
-	// ...
-}
-defer target.Close()
-
-err = target.Login("user", "password", "m1-go")
+reply, err := t.Res.GetModuleNumber(res.ModuleNumberCall{
+	Name: "Module",
+})
 if err != nil {
 	// ...
 }
 
-moduleInfo, err := target.RES.GetModuleNumber("Module")
+serverInfo, err := t.SVI.GetServerInfo(reply.ModuleNumber, svi.GetServerInfoCall{})
 if err != nil {
 	// ...
 }
-
-info, err := m1.Call(target, *moduleInfo, sysinfo.Procedures.CPUInfo(sysinfo.CPUInfoCall{}))
-if err != nil {
-	// ...
-}
-
 ```
+
+If your application implements custom RPC procedures these can be accesed by using the `m1.Call` and `m1.PaginatedCall` functions. Take a look at the implementation of the various models for data layout and tagging.
 
 The full documentation can be found at [pkg.go.dev](https://pkg.go.dev/github.com/ysmilda/m1-go).
 

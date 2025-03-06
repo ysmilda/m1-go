@@ -23,14 +23,12 @@ type (
 	}
 
 	ListModuleInfoCall struct {
-		First uint32
-		Last  uint32
+		rpc.PaginatedCallFirstLast
 	}
 
 	ListModuleInfoReply struct {
 		rpc.ReturnCode
-		Count   uint32
-		Modules []ModuleInfo `m1binary:"lengthRef:Count"`
+		rpc.PaginatedReplyCount[ModuleInfo]
 	}
 
 	ExtendedModuleInfoCall struct {
@@ -43,32 +41,30 @@ type (
 	}
 
 	ExtendedModuleInfoListCall struct {
-		First uint32
-		Last  uint32
+		rpc.PaginatedCallFirstLast
 	}
 
 	ExtendedModuleInfoListReply struct {
 		rpc.ReturnCode
-		Count   uint32
-		Modules []ExtendedModuleInfo `m1binary:"lengthRef:Count"`
+		rpc.PaginatedReplyCount[ExtendedModuleInfo]
 	}
 
-	ModuleChildListCall struct {
+	ModuleChildCall struct {
 		ParentTaskID uint32
 	}
 
-	ModuleChildListReply struct {
+	ModuleChildReply struct {
 		rpc.ReturnCode
 		ParentTask ModuleTaskInfo
 		Count      uint32
 		Children   []ModuleTaskInfo `m1binary:"lengthRef:Count"`
 	}
 
-	ModuleTaskListCall struct {
+	ModuleTaskCall struct {
 		Appname string `m1binary:"length:12"`
 	}
 
-	ModuleTaskListReply struct {
+	ModuleTaskReply struct {
 		rpc.ReturnCode
 		Count       uint32           `m1binary:"skip:16"`
 		ModuleTasks []ModuleTaskInfo `m1binary:"lengthRef:couCountnt"`
@@ -163,7 +159,7 @@ type (
 	}
 
 	CloseCall struct {
-		Spare []byte `m1binary:"length:8"`
+		spare []byte `m1binary:"length:8"`
 	}
 
 	CloseReply struct {

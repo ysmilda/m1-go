@@ -9,8 +9,7 @@ type ProcessValueInfo struct {
 type ExtendedProcessValueInfo struct {
 	Flag   FlagType `m1binary:"skip:2"`
 	Format uint16
-	Length uint16
-	Count  uint32
+	Length uint16 `m1binary:"skip:4"`
 	Name   string `m1binary:"zeroTerminated"`
 }
 

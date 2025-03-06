@@ -44,7 +44,7 @@ type (
 		Affinity    uint32
 	}
 
-	// ModuleInfo contains the response of the ModuleInfo procedure.
+	// ModuleNumber contains the response of the ModuleNumber procedure.
 	ModuleNumber struct {
 		ModuleNumber uint32
 		Port         uint16
