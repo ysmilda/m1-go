@@ -25,12 +25,12 @@ const (
 // Make sure to follow the documentation of the modules when using them directly.
 // The target should be closed after usage.
 type Target struct {
-	// Res - The resource handler manages software and hardware resources on the controller
 	Res     *res.Procedures
-	Mod     *mod.Procedures
-	SVI     *svi.Procedures
-	SMI     *smi.Procedures
 	SysInfo *sysinfo.Procedures
+
+	Mod *mod.Procedures
+	SVI *svi.Procedures
+	SMI *smi.Procedures
 
 	client *m1client.Client
 
@@ -48,12 +48,6 @@ func NewTarget(ip net.IP, timeout time.Duration) (*Target, error) {
 
 	t := &Target{
 		client: client,
-
-		Res:     res.NewProcedures(client),
-		Mod:     mod.NewProcedures(client),
-		SVI:     svi.NewProcedures(client),
-		SMI:     smi.NewProcedures(client),
-		SysInfo: sysinfo.NewProcedures(client),
 	}
 
 	// Setup the connection to the target.
@@ -61,6 +55,19 @@ func NewTarget(ip net.IP, timeout time.Duration) (*Target, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	infModuleNumber, err := t.Res.GetModuleNumber(res.ModuleNumberCall{
+		Name: "INFO",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	t.Res = res.NewProcedures(client)
+	t.Mod = mod.NewProcedures(client)
+	t.SVI = svi.NewProcedures(client)
+	t.SMI = smi.NewProcedures(client)
+	t.SysInfo = sysinfo.NewProcedures(client, infModuleNumber.ModuleNumber)
 
 	return t, nil
 }
@@ -83,8 +90,8 @@ func (t *Target) GetClient() *m1client.Client {
 
 // Login logs in to the target with the given user and password.
 //
-// This is a helper function that calls the RES.Login or RES.Login2 procedure depending on the target version.
-// When using a custom module for authentication use the RES.ExtLogin and RES.ExtLogout functions.
+// This is a helper function that calls the Res.Login or Res.Login2 procedure depending on the target version.
+// When using a custom module for authentication use the Res.ExtLogin and Res.ExtLogout functions.
 //
 // If the login is not required, this function does nothing.
 func (t *Target) Login(user, password string) error {
@@ -163,7 +170,6 @@ func (t *Target) Logout() error {
 }
 
 // ListVariables returns a list of all variables of the module.
-// The returned variables are not initialized. To initialize them, use the VHD module on the target.
 func (t *Target) ListVariables(module string) ([]Variable, error) {
 	number, err := t.Res.GetModuleNumber(res.ModuleNumberCall{
 		Name: module,
