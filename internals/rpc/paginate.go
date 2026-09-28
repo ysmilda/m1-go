@@ -69,6 +69,7 @@ func (v Values[T]) GetValues() []T {
 var (
 	_ PaginatedReplier[any] = &PaginatedReplyCount[any]{}
 	_ PaginatedReplier[any] = &PaginatedReplyContinuationCount[any]{}
+	_ PaginatedReplier[any] = &PaginatedReplyLast[any]{}
 )
 
 type PaginatedReplyCount[T any] struct {
@@ -88,4 +89,15 @@ type PaginatedReplyContinuationCount[T any] struct {
 
 func (l PaginatedReplyContinuationCount[T]) Done(step uint32) bool {
 	return l.ContinuationPoint == 0
+}
+
+// PaginatedReplyLast is a paginated reply that uses a Last bool field to signal termination.
+type PaginatedReplyLast[T any] struct {
+	Last bool `m1binary:"skip:3"`
+	Count
+	Values[T] `m1binary:"lengthRef:Count"`
+}
+
+func (l PaginatedReplyLast[T]) Done(uint32) bool {
+	return l.Last
 }

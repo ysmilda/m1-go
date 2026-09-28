@@ -8,8 +8,8 @@ import (
 )
 
 var Module = ModuleNumber{
-	ModuleNumber: (0x20000000 | 0x00001000),
-	Port:         3000,
+	Number: (0x20000000 | 0x00001000),
+	Port:   3000,
 }
 
 type (

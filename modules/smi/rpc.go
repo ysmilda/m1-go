@@ -10,40 +10,34 @@ import (
 )
 
 type (
-	InitialiseCall struct {
+	// ModuleNameCall is used by procedures that only require a module name.
+	ModuleNameCall struct {
 		ModuleName string `m1binary:"length:12"`
 	}
+
+	InitialiseCall      = ModuleNameCall
+	DeInitialiseCall    = ModuleNameCall
+	ResetCall           = ModuleNameCall
+	NewConfigCall       = ModuleNameCall
+	GetInfoCall         = ModuleNameCall
+	EndOfInitialiseCall = ModuleNameCall
+	StopCall            = ModuleNameCall
+	RunCall             = ModuleNameCall
 
 	InitialiseReply struct {
 		rpc.ReturnCode
-	}
-
-	DeInitialiseCall struct {
-		ModuleName string `m1binary:"length:12"`
 	}
 
 	DeInitialiseReply struct {
 		rpc.ReturnCode
 	}
 
-	ResetCall struct {
-		ModuleName string `m1binary:"length:12"`
-	}
-
 	ResetReply struct {
 		rpc.ReturnCode
 	}
 
-	NewConfigCall struct {
-		ModuleName string `m1binary:"length:12"`
-	}
-
 	NewConfigReply struct {
 		rpc.ReturnCode
-	}
-
-	GetInfoCall struct {
-		ModuleName string `m1binary:"length:12"`
 	}
 
 	GetInfoReply struct {
@@ -67,10 +61,6 @@ type (
 		Channels               []ComponentManagerChannelInfo `m1binary:"lengthRef:Count"`
 	}
 
-	EndOfInitialiseCall struct {
-		ModuleName string `m1binary:"length:12"`
-	}
-
 	EndOfInitialiseReply struct {
 		rpc.ReturnCode
 	}
@@ -84,16 +74,8 @@ type (
 		rpc.ReturnCode
 	}
 
-	StopCall struct {
-		ModuleName string `m1binary:"length:12"`
-	}
-
 	StopReply struct {
 		rpc.ReturnCode
-	}
-
-	RunCall struct {
-		ModuleName string `m1binary:"length:12"`
 	}
 
 	RunReply struct {

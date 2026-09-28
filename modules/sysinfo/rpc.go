@@ -16,8 +16,7 @@ type (
 
 	CardInfoReply struct {
 		rpc.ReturnCode
-		Last bool `m1binary:"skip:3"`
-		rpc.PaginatedReplyCount[CardInfo]
+		rpc.PaginatedReplyLast[CardInfo]
 	}
 
 	GetCPUAddressesCall struct {
@@ -275,10 +274,6 @@ type (
 		Configurations      []ConfigurationInfo `m1binary:"lengthRef:Count"`
 	}
 )
-
-func (c CardInfoReply) Done(uint32) bool {
-	return c.Last
-}
 
 func (t TaskInfoReply) Done(uint32) bool {
 	return t.Last

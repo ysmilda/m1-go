@@ -4,6 +4,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/ysmilda/m1-go/internals/rpc"
 	"github.com/ysmilda/m1-go/modules/msys"
 )
 
@@ -45,11 +46,10 @@ type (
 	}
 
 	// ModuleNumber contains the response of the ModuleNumber procedure.
-	ModuleNumber struct {
-		ModuleNumber uint32
-		Port         uint16
-	}
+	ModuleNumber = rpc.Module
+)
 
+type (
 	// SystemInfo contains the response of the SystemInfo procedure.
 	SystemInfo struct {
 		CPUSwitch       uint32
