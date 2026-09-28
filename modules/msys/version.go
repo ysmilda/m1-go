@@ -54,6 +54,10 @@ func (s *Version) Compare(v2 Version) int {
 	return 0
 }
 
+func (s *Version) AtLeast(major, minor, patch uint32) bool {
+	return s.Compare(Version{Major: major, Minor: minor, Patch: patch, ReleaseType: Release}) >= 0
+}
+
 type ReleaseType uint32
 
 const (

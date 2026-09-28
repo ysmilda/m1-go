@@ -100,7 +100,7 @@ func (t *Target) Login(user, password string) error {
 	}
 
 	// If the version is newer than 3.70.8-release we need to use the login2 procedure.
-	if t.msysVersion.Compare(msys.Version{Major: 3, Minor: 70, Patch: 8, ReleaseType: msys.Release}) >= 0 {
+	if t.msysVersion.AtLeast(3, 70, 8) {
 		_, err := t.login2(user, password, t.loginChecker)
 		return err
 	}
@@ -174,8 +174,7 @@ func (t *Target) ListVariables(module string) ([]Variable, error) {
 		return nil, err
 	}
 
-	version425 := msys.Version{Major: 4, Minor: 25, Patch: 0, ReleaseType: msys.Release}
-	if t.msysVersion.Compare(version425) >= 0 {
+	if t.msysVersion.AtLeast(4, 25, 0) {
 		return t.listVariables2(number.ModuleNumber, module)
 	} else {
 		return t.listVariables(number.ModuleNumber)
@@ -248,7 +247,7 @@ func (t *Target) connect() error {
 	t.msysVersion = info.MSysVersion
 
 	// If the version is newer than 3.95.0-release we need to open the RES module.
-	if info.MSysVersion.Compare(msys.Version{Major: 3, Minor: 95, Patch: 0, ReleaseType: msys.Release}) >= 0 {
+	if t.msysVersion.AtLeast(3, 95, 0) {
 		reply, err := t.Res.OpenConnection(res.OpenCall{
 			RequestedSMISize: 0x7FFFFFFF,
 		})
