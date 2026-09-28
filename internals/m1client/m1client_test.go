@@ -24,6 +24,7 @@ func TestGetConnection(t *testing.T) {
 	assert.NotNil(t, conn3)
 	assert.Equal(t, conn, conn3)
 
-	client.Close()
+	err := client.Close()
+	assert.NoError(t, err)
 	assert.Empty(t, client.connections)
 }

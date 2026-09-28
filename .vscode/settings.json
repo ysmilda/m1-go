@@ -3,13 +3,14 @@
   "gopls": {
     "formatting.gofumpt": true
   },
-  "go.lintTool": "golangci-lint",
-  "go.lintFlags": ["--fast"],
+  "go.lintTool": "golangci-lint-v2",
+  "go.lintFlags": [
+    "--fast"
+  ],
   "[go][go.mod]": {
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.organizeImports": "explicit"
     }
   }
-} 
- 
+}

@@ -8,11 +8,11 @@ import (
 func Call[C any, R rpc.ReturnCoder](
 	target *Target, info res.ModuleNumber, procedure rpc.Procedure[C, R],
 ) (*R, error) {
-	return rpc.Call(target.client, rpc.Module(info), procedure)
+	return rpc.Call(target.client, info, procedure)
 }
 
 func PaginatedCall[T any, C rpc.PaginatedCaller, R rpc.PaginatedReturnCoder[T]](
 	target *Target, info res.ModuleNumber, procedure rpc.PaginatedProcedure[T, C, R], pageSize uint32,
 ) ([]T, error) {
-	return rpc.PaginatedCall(target.client, rpc.Module(info), procedure, pageSize)
+	return rpc.PaginatedCall(target.client, info, procedure, pageSize)
 }
