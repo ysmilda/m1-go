@@ -111,9 +111,7 @@ func (t *Target) Login(user, password string) error {
 
 func (t *Target) login(user, password string, loginChecker bool) (*res.Login, error) {
 	c := res.LoginCall{
-		SystemInfoCall: res.SystemInfoCall{
-			Toolname: toolName,
-		},
+		Toolname: toolName,
 		Username: user,
 		Password: password,
 	}
@@ -137,9 +135,7 @@ func (t *Target) login2(
 	user, password string, loginChecker bool,
 ) (*res.Login2, error) {
 	c := res.Login2Call{
-		SystemInfoCall: res.SystemInfoCall{
-			Toolname: toolName,
-		},
+		Toolname: toolName,
 		Username: user,
 		Password: password,
 	}
@@ -208,11 +204,9 @@ func (t *Target) listVariables2(module res.ModuleNumber, name string) ([]Variabl
 		}
 
 		result = append(result, Variable{
-			Name: fmt.Sprintf("%s/%s", path, value.Name),
-			Variable: svi.Variable{
-				Format: value.Format,
-				Length: value.Length,
-			},
+			Name:   fmt.Sprintf("%s/%s", path, value.Name),
+			Format: value.Format,
+			Length: value.Length,
 		})
 	}
 
@@ -231,11 +225,9 @@ func (t *Target) listVariables(module res.ModuleNumber) ([]Variable, error) {
 	result := []Variable{}
 	for _, value := range reply {
 		result = append(result, Variable{
-			Name: "RES/" + value.Name,
-			Variable: svi.Variable{
-				Format: value.Format,
-				Length: value.Length,
-			},
+			Name:   "RES/" + value.Name,
+			Format: value.Format,
+			Length: value.Length,
 		})
 	}
 

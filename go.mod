@@ -1,6 +1,6 @@
 module github.com/ysmilda/m1-go
 
-go 1.24
+go 1.27
 
 require (
 	github.com/davecgh/go-spew v1.1.1

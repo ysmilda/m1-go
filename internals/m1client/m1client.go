@@ -54,7 +54,7 @@ func (c *Client) GetConnection(port uint16) *Conn {
 		return connection
 	}
 
-	nc, err := net.Dial("udp", fmt.Sprintf("%s:%d", c.ip, port))
+	nc, err := net.Dial("udp", net.JoinHostPort(c.ip.String(), fmt.Sprintf("%d", port)))
 	if err != nil {
 		return nil
 	}

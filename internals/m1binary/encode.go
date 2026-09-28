@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math"
 	"reflect"
-
-	"github.com/ysmilda/m1-go/internals/ptr"
 )
 
 func Encode(v any) ([]byte, error) {
@@ -42,10 +40,10 @@ func encode(v any) ([]byte, error) {
 				panic("lengthRef references non integer field")
 
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				tag.Length = ptr.For(int(ref.Uint()))
+				tag.Length = new(int(ref.Uint()))
 
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				tag.Length = ptr.For(int(ref.Int()))
+				tag.Length = new(int(ref.Int()))
 				if *tag.Length < 0 {
 					return nil, fmt.Errorf("value pointed to by lengthRef (%s) is negative", *tag.LengthRef)
 				}

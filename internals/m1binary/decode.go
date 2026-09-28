@@ -10,15 +10,13 @@ import (
 	"math"
 	"reflect"
 	"time"
-
-	"github.com/ysmilda/m1-go/internals/ptr"
 )
 
 var ErrInvalidDataLength = errors.New("invalid data length")
 
 var (
-	timeType     = reflect.TypeOf(time.Time{})
-	durationType = reflect.TypeOf(time.Duration(0))
+	timeType     = reflect.TypeFor[time.Time]()
+	durationType = reflect.TypeFor[time.Duration]()
 )
 
 type Decoder interface {
@@ -45,7 +43,7 @@ func decode(data []byte, v reflect.Value) (int, error) {
 	// If it is not a struct parse the field directly.
 	if v.Kind() != reflect.Struct {
 		return decodeField(v, data, Tag{
-			Length: ptr.For(len(data)),
+			Length: new(len(data)),
 		})
 	}
 
@@ -67,10 +65,10 @@ func decode(data []byte, v reflect.Value) (int, error) {
 				panic("lengthRef references non integer field")
 
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				tag.Length = ptr.For(int(ref.Uint()))
+				tag.Length = new(int(ref.Uint()))
 
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				tag.Length = ptr.For(int(ref.Int()))
+				tag.Length = new(int(ref.Int()))
 			}
 		}
 
@@ -172,7 +170,7 @@ func decodeField(v reflect.Value, data []byte, tag Tag) (int, error) { //nolint:
 	case reflect.Slice:
 		if tag.TillEnd {
 			// When reading till the end we need to divide the remaining data by the size of one element.
-			tag.Length = ptr.For(len(data) / sizeOf(reflect.Zero(v.Type().Elem())))
+			tag.Length = new(len(data) / sizeOf(reflect.Zero(v.Type().Elem())))
 		} else if tag.Length == nil {
 			panic("missing length tag for slice field")
 		} else if *tag.Length > len(data) {
@@ -279,7 +277,7 @@ func decodeField(v reflect.Value, data []byte, tag Tag) (int, error) { //nolint:
 	case reflect.String:
 		if tag.Length == nil {
 			if tag.ZeroTerminated {
-				tag.Length = ptr.For(len(data))
+				tag.Length = new(len(data))
 			} else {
 				panic("missing length tag for string field")
 			}

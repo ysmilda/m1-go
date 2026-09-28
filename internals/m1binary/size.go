@@ -13,8 +13,8 @@ func SizeOf(v any) int {
 	}
 
 	n := 0
-	for i := range rv.NumField() {
-		n += sizeOf(rv.Field(i))
+	for _, field := range rv.Fields() {
+		n += sizeOf(field)
 	}
 
 	return n

@@ -3,8 +3,6 @@ package m1binary
 import (
 	"strconv"
 	"strings"
-
-	"github.com/ysmilda/m1-go/internals/ptr"
 )
 
 const (
@@ -72,7 +70,7 @@ func mustFindString(s string, tag string) *string {
 			break
 		}
 	}
-	return ptr.For(s[idx:endIdx])
+	return new(s[idx:endIdx])
 }
 
 func mustFindInt(s string, tag string) *int {
@@ -84,7 +82,7 @@ func mustFindInt(s string, tag string) *int {
 	if err != nil {
 		panic(err)
 	}
-	return ptr.For(i)
+	return new(i)
 }
 
 func mustFindBool(s string, tag string) bool {
