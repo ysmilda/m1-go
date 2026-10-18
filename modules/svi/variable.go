@@ -19,7 +19,7 @@ func (v Variable) IsWritable() bool {
 }
 
 // TODO: Figure out a way to not need to use pointers here.
-// This is needed for the indirection of the interface in m1binary.Decode.
+// This is needed for the indirection of the interface in gobinary.Decode.
 func (v Variable) GetGoDataType() any {
 	if v.IsBlock() {
 		switch v.Format & ElementaryTypeMask {

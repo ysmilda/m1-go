@@ -1,13 +1,13 @@
 package mod
 
 import (
-	"github.com/ysmilda/m1-go/internals/m1binary"
+	"github.com/ysmilda/gobinary"
 	"github.com/ysmilda/m1-go/modules/msys"
 )
 
 type Version msys.Version
 
-func (v *Version) DecodeM1(in []byte) (int, error) {
+func (v *Version) BinaryDecode(in []byte) (int, error) {
 	code := struct {
 		ReleaseType msys.ReleaseType
 		Major       uint32
@@ -15,7 +15,7 @@ func (v *Version) DecodeM1(in []byte) (int, error) {
 		Patch       uint32
 	}{}
 
-	n, err := m1binary.Decode(in, &code)
+	n, err := gobinary.Decode(in, &code)
 	if err != nil {
 		return n, err
 	}

@@ -1,16 +1,16 @@
 package svi
 
 type ProcessValueInfo struct {
-	Name   string `m1binary:"length:64"`
+	Name   string `binary:"length:64"`
 	Format uint16
 	Length uint16
 }
 
 type ExtendedProcessValueInfo struct {
-	Flag   FlagType `m1binary:"skip:2"`
+	Flag   FlagType `binary:"skip:2"`
 	Format uint16
-	Length uint16 `m1binary:"skip:4"`
-	Name   string `m1binary:"zeroTerminated"`
+	Length uint16 `binary:"skip:4"`
+	Name   string `binary:"zeroTerminated"`
 }
 
 type ServerInfo struct {
@@ -24,5 +24,5 @@ type VariableInfo struct {
 	StartIndexHigh             uint32 // Start index of high matrix elements (high or 1st index)
 	AmountOfLowMatrixElements  uint32
 	AmountOfHighMatrixElements uint32
-	Reserved                   []uint32 `m1binary:"length:4"`
+	Reserved                   []uint32 `binary:"length:4"`
 }

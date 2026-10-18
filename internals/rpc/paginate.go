@@ -43,11 +43,11 @@ type PaginatedCallCountStart struct {
 
 type PaginatedCallFirstLast struct {
 	Start
-	last uint32
+	Last uint32
 }
 
 func (l *PaginatedCallFirstLast) SetCount(count uint32) {
-	l.last = uint32(l.Start) + count
+	l.Last = uint32(l.Start) + count
 }
 
 type PaginatedReplier[T any] interface {
@@ -74,7 +74,7 @@ var (
 
 type PaginatedReplyCount[T any] struct {
 	Count
-	Values[T] `m1binary:"lengthRef:Count"`
+	Values[T] `binary:"lengthRef:Count"`
 }
 
 func (l PaginatedReplyCount[T]) Done(step uint32) bool {
@@ -82,9 +82,9 @@ func (l PaginatedReplyCount[T]) Done(step uint32) bool {
 }
 
 type PaginatedReplyContinuationCount[T any] struct {
-	ContinuationPoint uint32 `m1binary:"skip:12"`
+	ContinuationPoint uint32 `binary:"skip:12"`
 	Count
-	Values[T] `m1binary:"lengthRef:Count,allign4"`
+	Values[T] `binary:"lengthRef:Count,align4"`
 }
 
 func (l PaginatedReplyContinuationCount[T]) Done(step uint32) bool {
@@ -93,9 +93,9 @@ func (l PaginatedReplyContinuationCount[T]) Done(step uint32) bool {
 
 // PaginatedReplyLast is a paginated reply that uses a Last bool field to signal termination.
 type PaginatedReplyLast[T any] struct {
-	Last bool `m1binary:"skip:3"`
+	Last bool `binary:"skip:3"`
 	Count
-	Values[T] `m1binary:"lengthRef:Count"`
+	Values[T] `binary:"lengthRef:Count"`
 }
 
 func (l PaginatedReplyLast[T]) Done(uint32) bool {

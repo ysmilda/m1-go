@@ -28,13 +28,13 @@ type (
 
 	GetValuesReply struct {
 		rpc.ReturnCode
-		Values []Address `m1binary:"tillEnd"`
+		Values []Address `binary:"tillEnd"`
 	}
 
 	SetValuesCall struct {
 		Amount    uint32
-		Addresses []Address `m1binary:"lengthRef:Amount"`
-		Values    []uint32  `m1binary:"lengthRef:Amount"`
+		Addresses []Address `binary:"lengthRef:Amount"`
+		Values    []uint32  `binary:"lengthRef:Amount"`
 	}
 
 	SetValuesReply struct {
@@ -49,7 +49,7 @@ type (
 	GetBlockReply struct {
 		rpc.ReturnCode
 		Count uint32
-		Data  []byte `m1binary:"lengthRef:Count"`
+		Data  []byte `binary:"lengthRef:Count"`
 	}
 
 	// Multiblock reply.
@@ -69,13 +69,13 @@ type (
 		Offset           uint32
 		Count            uint32
 		NumberOfElements uint32
-		Data             []byte `m1binary:"lengthRef:Count"`
+		Data             []byte `binary:"lengthRef:Count"`
 	}
 
 	SetBlockCall struct {
 		Address Address
 		Length  uint32
-		Data    []byte `m1binary:"lengthRef:Length"`
+		Data    []byte `binary:"lengthRef:Length"`
 	}
 
 	SetBlockReply struct {
@@ -101,7 +101,7 @@ type (
 		Offset           uint32
 		Count            uint32
 		NumberOfElements uint32
-		Elements         []byte `m1binary:"lengthRef:Count"`
+		Elements         []byte `binary:"lengthRef:Count"`
 	}
 
 	GetAddressCall struct {
@@ -124,15 +124,15 @@ type (
 	}
 
 	ListExtendedProcessValueInfoCall struct {
-		extendedCallIdentifier uint32 // Is set to svi.PvInfoExtendedCallIdentifier
+		ExtendedCallIdentifier uint32 // Is set to svi.PvInfoExtendedCallIdentifier
 		rpc.PaginatedCallCountStart
-		GetSubprocessValues bool `m1binary:"skip:11"`
+		GetSubprocessValues bool `binary:"skip:11"`
 		PathLength          uint32
-		Path                string `m1binary:"lengthRef:PathLength"`
+		Path                string `binary:"lengthRef:PathLength"`
 	}
 
 	ListExtendedProcessValueInfoReply struct {
-		rpc.ReturnCode `m1binary:"skip:4"`
+		rpc.ReturnCode `binary:"skip:4"`
 		rpc.PaginatedReplyContinuationCount[ExtendedProcessValueInfo]
 	}
 
@@ -151,6 +151,6 @@ type (
 		rpc.ReturnCode
 		Address Address
 		Format  uint16
-		Length  uint16 `m1binary:"skip:20"`
+		Length  uint16 `binary:"skip:20"`
 	}
 )

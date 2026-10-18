@@ -10,8 +10,8 @@ import (
 
 type (
 	ModuleInfo struct {
-		Type              string    `m1binary:"length:12"`
-		Name              string    `m1binary:"length:12"`
+		Type              string    `binary:"length:12"`
+		Name              string    `binary:"length:12"`
 		Index             uint32    // Index of the module instance
 		Partition         uint32    // Memory partition the module runs in
 		MinimumRPCVersion uint32    // Oldest supported RPC version
@@ -38,7 +38,7 @@ type (
 
 	ModuleTaskInfo struct {
 		TaskID      uint32
-		Name        string `m1binary:"length:16"`
+		Name        string `binary:"length:16"`
 		Priority    uint32
 		Status      uint32
 		ErrorStatus uint32
@@ -55,23 +55,23 @@ type (
 		CPUSwitch       uint32
 		ProcessorNumber uint32
 		RestartCount    uint32
-		IPAddress       net.IP `m1binary:"length:4"`
+		IPAddress       net.IP `binary:"length:4"`
 		CPUID           CPUType
 		MCoreVersion    msys.Version
 		MSysVersion     msys.Version
-		ApplicationName string `m1binary:"length:24"`
+		ApplicationName string `binary:"length:24"`
 		SecurityLevel   uint32
-		LoginRequired   bool `m1binary:"skip:3"`
+		LoginRequired   bool `binary:"skip:3"`
 		DateTime        msys.DateTime
-		LoginChecker    bool `m1binary:"skip:3"`
+		LoginChecker    bool `binary:"skip:3"`
 		AccessControl   bool
 		AccessHandler   bool
-		UserManagement  bool `m1binary:"skip:1"`
+		UserManagement  bool `binary:"skip:1"`
 		AppState        ResourceState
 		SystemState     ResourceState
 		SessionLifetime uint32
-		TimeBase        uint16 `m1binary:"skip:2"`
-		Timezone        string `m1binary:"length:36"`
+		TimeBase        uint16 `binary:"skip:2"`
+		Timezone        string `binary:"length:36"`
 		TimeOffset      int32
 		TimeUTCSec      uint32
 		TimeUTCNsec     uint32
@@ -81,17 +81,17 @@ type (
 	CPUType struct {
 		Type         uint32
 		Variant      uint32
-		SerialNumber string `m1binary:"length:12"`
+		SerialNumber string `binary:"length:12"`
 	}
 
 	// Login2 contains the response of the Login2 procedure.
 	Login2 struct {
-		SecurityLevel          uint32 `m1binary:"skip:4"`
+		SecurityLevel          uint32 `binary:"skip:4"`
 		UserAccount            UserAccess
 		AuthLen                uint32
-		Auth                   []byte        `m1binary:"length:128"`
-		UserData               []byte        `m1binary:"length:128"`
-		LockoutWaitTime        time.Duration `m1binary:"length:4,unit:seconds"`
+		Auth                   []byte        `binary:"length:128"`
+		UserData               []byte        `binary:"length:128"`
+		LockoutWaitTime        time.Duration `binary:"length:4,unit:seconds"`
 		PasswordMinimumClasses uint32
 		PasswordMinimumLength  uint32
 	}
@@ -101,15 +101,15 @@ type (
 		SecurityLevel uint32
 		Permissions   Permissions
 		AuthLen       uint32
-		Auth          []byte `m1binary:"length:128"`
+		Auth          []byte `binary:"length:128"`
 	}
 
 	// ExtLogin contains the response of the ExtLogin procedure.
 	ExtLogin struct {
 		SecurityLevel uint32
 		AuthLen       uint32
-		Auth          []byte `m1binary:"length:128"`
-		UserData      []byte `m1binary:"length:128"`
+		Auth          []byte `binary:"length:128"`
+		UserData      []byte `binary:"length:128"`
 	}
 
 	// Open contains the response of the Open procedure.
@@ -117,29 +117,29 @@ type (
 		SessionTimeout        int32
 		SessionLifetime       int32
 		SMIMessageSize        int32
-		SessionIdlePrevention bool `m1binary:"skip:127"`
+		SessionIdlePrevention bool `binary:"skip:127"`
 		AuthLen               uint32
-		Auth                  []byte `m1binary:"length:128"`
+		Auth                  []byte `binary:"length:128"`
 	}
 
 	// Renew contains the response of the Renew procedure.
 	Renew struct {
-		RevisedAuthenticationRenewal bool `m1binary:"skip:19"`
+		RevisedAuthenticationRenewal bool `binary:"skip:19"`
 		RestartCount                 uint32
 		ApplicationState             ResourceState
-		SystemState                  ResourceState `m1binary:"skip:128"`
+		SystemState                  ResourceState `binary:"skip:128"`
 		AuthLen                      uint32
-		Auth                         []byte `m1binary:"length:128"`
+		Auth                         []byte `binary:"length:128"`
 	}
 
 	// ExtPing contains the response of the ExtPing procedure.
 	ExtPing struct {
-		SerialNumber    string `m1binary:"length:12"`
+		SerialNumber    string `binary:"length:12"`
 		MSysVersion     msys.Version
-		TargetName      string `m1binary:"length:20"`
+		TargetName      string `binary:"length:20"`
 		RequestMode     ReplyMode
 		DHCPEnabled     bool
-		OperatingSystem OSVariant `m1binary:"skip:2"`
+		OperatingSystem OSVariant `binary:"skip:2"`
 		CPUType         uint32
 		CPUVariant      uint32
 	}
@@ -147,11 +147,11 @@ type (
 	ExtPing2 struct {
 		ExtPing
 		NumberOfApps uint32
-		Apps         []ModName // TODO: Figure out how to m1binary this
+		Apps         []ModName // TODO: Figure out how to encode this
 	}
 
 	ModName struct {
-		ApplicationName string `m1binary:"length:12"`
+		ApplicationName string `binary:"length:12"`
 		State           ResourceState
 		Attributes      Attribute
 	}

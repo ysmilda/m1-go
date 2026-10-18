@@ -7,7 +7,7 @@ import (
 	"io"
 	"math/rand/v2"
 
-	"github.com/ysmilda/m1-go/internals/m1binary"
+	"github.com/ysmilda/gobinary"
 	"github.com/ysmilda/m1-go/internals/m1client"
 	"github.com/ysmilda/m1-go/internals/m1errors"
 )
@@ -58,7 +58,7 @@ func Call[C any, R ReturnCoder](client *m1client.Client, module Module, procedur
 		Auth:      client.GetAuth(),
 	}
 
-	body, err := m1binary.Encode(procedure.Call)
+	body, err := gobinary.Encode(procedure.Call)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse call: %w", err)
 	}
@@ -69,7 +69,7 @@ func Call[C any, R ReturnCoder](client *m1client.Client, module Module, procedur
 	}
 
 	reply := new(R)
-	_, err = m1binary.Decode(buf, reply)
+	_, err = gobinary.Decode(buf, reply)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse reply: %w", err)
 	}
@@ -99,7 +99,7 @@ func PaginatedCall[T any, C PaginatedCaller, R PaginatedReturnCoder[T]](
 			Auth:      client.GetAuth(),
 		}
 
-		body, err := m1binary.Encode(procedure.Call)
+		body, err := gobinary.Encode(procedure.Call)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse call: %w", err)
 		}
@@ -110,7 +110,7 @@ func PaginatedCall[T any, C PaginatedCaller, R PaginatedReturnCoder[T]](
 		}
 
 		reply := new(R)
-		_, err = m1binary.Decode(buf, reply)
+		_, err = gobinary.Decode(buf, reply)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse reply: %w", err)
 		}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ysmilda/m1-go/internals/m1binary"
+	"github.com/ysmilda/gobinary"
 	"github.com/ysmilda/m1-go/modules/res"
 	"github.com/ysmilda/m1-go/modules/svi"
 )
@@ -89,7 +89,7 @@ func (v *Variable) SetValue(value any) error {
 		return errors.New("setvalue not yet implemented for block values")
 	}
 
-	buf, err := m1binary.Encode(value)
+	buf, err := gobinary.Encode(value)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func (v *Variable) GetValue() (any, error) {
 	}
 
 	t := v.GetGoDataType()
-	_, err = m1binary.Decode(binary.LittleEndian.AppendUint32(nil, reply.Value), &t)
+	_, err = gobinary.Decode(binary.LittleEndian.AppendUint32(nil, reply.Value), &t)
 	if err != nil {
 		return nil, err
 	}

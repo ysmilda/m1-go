@@ -12,7 +12,7 @@ import (
 type (
 	// ModuleNameCall is used by procedures that only require a module name.
 	ModuleNameCall struct {
-		ModuleName string `m1binary:"length:12"`
+		ModuleName string `binary:"length:12"`
 	}
 
 	InitialiseCall      = ModuleNameCall
@@ -42,23 +42,23 @@ type (
 
 	GetInfoReply struct {
 		rpc.ReturnCode
-		ModuleName  string `m1binary:"length:12"`
-		Description string `m1binary:"length:80"`
+		ModuleName  string `binary:"length:12"`
+		Description string `binary:"length:80"`
 		Version     msys.Version
 		State       res.ResourceState
 		DebugMode   uint32
 	}
 
 	GetMappedInfoListCall struct {
-		StartIndex uint32 `m1binary:"skip:16"`
+		StartIndex uint32 `binary:"skip:16"`
 	}
 
 	GetMappedInfoListReply struct {
 		rpc.ReturnCode
 		NumberOfInputChannels  uint32
 		NumberOfOutputChannels uint32
-		Count                  uint32                        `m1binary:"skip:16"`
-		Channels               []ComponentManagerChannelInfo `m1binary:"lengthRef:Count"`
+		Count                  uint32                        `binary:"skip:16"`
+		Channels               []ComponentManagerChannelInfo `binary:"lengthRef:Count"`
 	}
 
 	EndOfInitialiseReply struct {
@@ -66,7 +66,7 @@ type (
 	}
 
 	SetDebugModeCall struct {
-		ModuleName string `m1binary:"length:12"`
+		ModuleName string `binary:"length:12"`
 		DebugMode  uint32
 	}
 
@@ -83,82 +83,82 @@ type (
 	}
 
 	AliveCall struct {
-		IPAddress      net.IP `m1binary:"length:4"`
+		IPAddress      net.IP `binary:"length:4"`
 		LoginSessionID uint32
-		Internal       bool   `m1binary:"skip:3"`
-		Username       string `m1binary:"length:20"`
+		Internal       bool   `binary:"skip:3"`
+		Username       string `binary:"length:20"`
 	}
 
 	AliveReply struct {
-		rpc.ReturnCode `m1binary:"skip:8"`
+		rpc.ReturnCode `binary:"skip:8"`
 	}
 
 	ExtendedLoginCall struct {
 		UserParameter uint32
-		IPAddress     net.IP `m1binary:"length:4"`
-		SessionID     uint32 `m1binary:"skip:4"`
-		Username      string `m1binary:"length:20"`
-		Password      string `m1binary:"length:16"`
+		IPAddress     net.IP `binary:"length:4"`
+		SessionID     uint32 `binary:"skip:4"`
+		Username      string `binary:"length:20"`
+		Password      string `binary:"length:16"`
 	}
 
 	ExtendedLoginReply struct {
 		rpc.ReturnCode
 		Permissions res.Permissions
-		UserData    []byte `m1binary:"length:128"`
+		UserData    []byte `binary:"length:128"`
 	}
 
 	ExtendedLogin2Call struct {
 		UserParameter uint32
 		UserAuth      res.UserAuth
-		Password      string `m1binary:"length:32,skip:8"`
+		Password      string `binary:"length:32,skip:8"`
 	}
 
 	ExtendedLogin2Reply struct {
 		rpc.ReturnCode
 		UserAccess res.UserAccess
-		DelayTime  time.Duration `m1binary:"length:4,unit:milliseconds,skip:4"` // 0=auto
-		UserData   []byte        `m1binary:"length:128"`
+		DelayTime  time.Duration `binary:"length:4,unit:milliseconds,skip:4"` // 0=auto
+		UserData   []byte        `binary:"length:128"`
 	}
 
 	ExtendedRequestAccessCall struct {
-		UserParameter uint32 `m1binary:"skip:12"`
+		UserParameter uint32 `binary:"skip:12"`
 	}
 
 	ExtendedRequestAccessReply struct {
-		rpc.ReturnCode `m1binary:"skip:16"`
+		rpc.ReturnCode `binary:"skip:16"`
 	}
 
 	ExtendedReleaseAccessCall struct {
-		UserParameter uint32 `m1binary:"skip:12"`
+		UserParameter uint32 `binary:"skip:12"`
 	}
 
 	ExtendedReleaseAccessReply struct {
-		rpc.ReturnCode `m1binary:"skip:16"`
+		rpc.ReturnCode `binary:"skip:16"`
 	}
 
 	SetSVIAccessCall struct {
-		ModuleName string `m1binary:"length:12,skip:16"`
+		ModuleName string `binary:"length:12,skip:16"`
 	}
 
 	SetSVIAccessReply struct {
-		rpc.ReturnCode `m1binary:"skip:16"`
+		rpc.ReturnCode `binary:"skip:16"`
 	}
 
 	LicenseEventCall struct {
-		Event LicenseEvent `m1binary:"skip:16"`
+		Event LicenseEvent `binary:"skip:16"`
 	}
 
 	LicenseEventReply struct {
-		rpc.ReturnCode `m1binary:"skip:16"`
+		rpc.ReturnCode `binary:"skip:16"`
 	}
 
 	ExtendedLogoutCall struct {
 		UserParameter  uint32
-		IPAddress      net.IP `m1binary:"length:4"`
-		LoginSessionID uint32 `m1binary:"skip:152"`
+		IPAddress      net.IP `binary:"length:4"`
+		LoginSessionID uint32 `binary:"skip:152"`
 	}
 
 	ExtendedLogoutReply struct {
-		rpc.ReturnCode `m1binary:"skip:8"`
+		rpc.ReturnCode `binary:"skip:8"`
 	}
 )

@@ -11,7 +11,7 @@ import (
 type (
 	CardInfoCall struct {
 		rpc.PaginatedCallFirstLast
-		filter uint32 // Must be zero
+		Filter uint32 // Must be zero
 	}
 
 	CardInfoReply struct {
@@ -20,18 +20,18 @@ type (
 	}
 
 	GetCPUAddressesCall struct {
-		parameter uint32 // Must be zero
+		Parameter uint32 // Must be zero
 	}
 
 	GetCPUAddressesReply struct {
 		rpc.ReturnCode
 		CurrentIndex uint32
 		Count        uint32
-		Addresses    []CPUAddress `m1binary:"lengthRef:Count"`
+		Addresses    []CPUAddress `binary:"lengthRef:Count"`
 	}
 
 	CPUInfoCall struct {
-		parameter uint32 // Must be zero
+		Parameter uint32 // Must be zero
 	}
 
 	CPUInfoReply struct {
@@ -40,13 +40,13 @@ type (
 	}
 
 	GetSystemObjectInfoCall struct {
-		parameter uint32 // Must be zero
+		Parameter uint32 // Must be zero
 	}
 
 	GetSystemObjectInfoReply struct {
 		rpc.ReturnCode
 		Count  uint32
-		Object []SystemObjectInfo `m1binary:"lengthRef:Count"`
+		Object []SystemObjectInfo `binary:"lengthRef:Count"`
 	}
 
 	IODriverInfoCall struct {
@@ -59,7 +59,7 @@ type (
 	}
 
 	LogInfoCall struct {
-		parameter uint32 // Must be zero
+		Parameter uint32 // Must be zero
 	}
 
 	LogInfoReply struct {
@@ -67,17 +67,17 @@ type (
 		NumberOfEntries   uint32
 		LogFileSize       uint32
 		SizeOfOneLogEntry uint32
-		Filename          string `m1binary:"length:84"`
+		Filename          string `binary:"length:84"`
 	}
 
 	TaskInfoCall struct {
 		rpc.PaginatedCallFirstLast
-		spare uint32 // Must be zero
+		Spare uint32 // Must be zero
 	}
 
 	TaskInfoReply struct {
 		rpc.ReturnCode
-		Last bool `m1binary:"skip:3"`
+		Last bool `binary:"skip:3"`
 		// TODO: With the current PaginatedCall implementation these values are thrown away, is there a way to keep them?
 		TimeTotal int64  // clockcycles since power up
 		TimeUnits uint32 // clockcyles per microsecond
@@ -87,21 +87,21 @@ type (
 	ListExtendedTaskInfoCall struct {
 		FirstIndex uint32
 		LastIndex  uint32
-		spare      uint32 // Must be zero
+		Spare      uint32 // Must be zero
 	}
 
 	ListExtendedTaskInfoReply struct {
 		rpc.ReturnCode
-		Last          bool   `m1binary:"skip:3"`
+		Last          bool   `binary:"skip:3"`
 		TimeTotal     int64  // clockcycles since power up
 		TimeUnits     uint32 // clockcyles per microsecond
-		NumberOfCores uint32 `m1binary:"skip:16"`
+		NumberOfCores uint32 `binary:"skip:16"`
 		Count         uint32
-		Objects       []TaskInfo `m1binary:"lengthRef:Count"`
+		Objects       []TaskInfo `binary:"lengthRef:Count"`
 	}
 
 	BootInfoCall struct {
-		parameter uint32 // Must be zero
+		Parameter uint32 // Must be zero
 	}
 
 	BootInfoReply struct {
@@ -110,20 +110,20 @@ type (
 	}
 
 	BootInfo2Call struct {
-		parameter uint32 // Must be zero
+		Parameter uint32 // Must be zero
 	}
 
 	BootInfo2Reply struct {
 		rpc.ReturnCode
-		BootDevice         string `m1binary:"length:20"`
-		HostName           string `m1binary:"length:20"`
-		CorePath           string `m1binary:"length:80"`
-		MsysPath           string `m1binary:"length:80"`
-		ConfigPath         string `m1binary:"length:80"`
-		CoreFallbackUsed   bool   `m1binary:"skip:3"`
-		MsysFallbackUsed   bool   `m1binary:"skip:3"`
-		ConfigFallbackUsed bool   `m1binary:"skip:3"`
-		ConfigBackupUsed   bool   `m1binary:"skip:503"`
+		BootDevice         string `binary:"length:20"`
+		HostName           string `binary:"length:20"`
+		CorePath           string `binary:"length:80"`
+		MsysPath           string `binary:"length:80"`
+		ConfigPath         string `binary:"length:80"`
+		CoreFallbackUsed   bool   `binary:"skip:3"`
+		MsysFallbackUsed   bool   `binary:"skip:3"`
+		ConfigFallbackUsed bool   `binary:"skip:3"`
+		ConfigBackupUsed   bool   `binary:"skip:503"`
 	}
 
 	TimeMeasurementOnOffCall struct {
@@ -132,31 +132,31 @@ type (
 
 	TimeMeasurementOnOffReply struct {
 		rpc.ReturnCode
-		Enabled bool `m1binary:"skip:3"`
+		Enabled bool `binary:"skip:3"`
 	}
 
 	ApplicationNameCall struct {
-		parameter uint32 // Must be zero
+		Parameter uint32 // Must be zero
 	}
 
 	ApplicationNameReply struct {
 		rpc.ReturnCode
-		Name string `m1binary:"length:24,skip:80"`
+		Name string `binary:"length:24,skip:80"`
 	}
 
 	ConsoleReadCall struct {
 		BufferSize uint32
-		spare      uint32 // Must be zero
+		Spare      uint32 // Must be zero
 	}
 
 	ConsoleReadReply struct {
 		rpc.ReturnCode
-		Count uint32 `m1binary:"skip:4"`
-		Text  string `m1binary:"lengthRef:Count"`
+		Count uint32 `binary:"skip:4"`
+		Text  string `binary:"lengthRef:Count"`
 	}
 
 	ConsoleCommandCall struct {
-		Command string `m1binary:"length:256,zeroTarminated"`
+		Command string `binary:"length:256,zeroTerminated"`
 	}
 
 	ConsoleCommandReply struct {
@@ -164,11 +164,11 @@ type (
 	}
 
 	AliveCall struct {
-		CallerIP  net.IP `m1binary:"length:4"`
+		CallerIP  net.IP `binary:"length:4"`
 		SessionID uint32
 		// Currently only support NORMALMODE (e.g. I am alive) command.
 		// The others return a value instead of the returncode, which is not supported.
-		mode           uint32
+		Mode           uint32
 		LoginSessionID uint32
 	}
 
@@ -177,15 +177,15 @@ type (
 	}
 
 	CPUUsageCall struct {
-		Mode CPUUsageMeasurementMode `m1binary:"skip:8"`
+		Mode CPUUsageMeasurementMode `binary:"skip:8"`
 	}
 
 	CPUUsageReply struct {
 		rpc.ReturnCode
 		TimeUnits            uint32 // Clockcycles per microseconds
 		Usage                CoreUsage
-		TaskGroupMaxRuntime  []uint32 `m1binary:"length:10"`
-		TaskGroupAllowedTime []uint32 `m1binary:"length:10,skip:16"`
+		TaskGroupMaxRuntime  []uint32 `binary:"length:10"`
+		TaskGroupAllowedTime []uint32 `binary:"length:10,skip:16"`
 	}
 
 	CPUUsageMeasurementOnOffCall struct {
@@ -194,84 +194,84 @@ type (
 
 	CPUUsageMeasurementOnOffReply struct {
 		rpc.ReturnCode
-		Enabled bool `m1binary:"skip:3"`
+		Enabled bool `binary:"skip:3"`
 	}
 
 	ListObjectInfoCall struct {
 		FirstIndex uint32
-		LastIndex  uint32 `m1binary:"length:24"`
+		LastIndex  uint32
 	}
 
 	ListObjectInfoReply struct {
 		rpc.ReturnCode
-		Last    bool         `m1binary:"skip:3"`
-		Count   uint32       `m1binary:"skip:12"`
-		Objects []ObjectInfo `m1binary:"lengthRef:Count"`
+		Last    bool         `binary:"skip:3"`
+		Count   uint32       `binary:"skip:12"`
+		Objects []ObjectInfo `binary:"lengthRef:Count"`
 	}
 
 	ListLibraryInfoCall struct {
 		FirstIndex uint32
-		LastIndex  uint32 `m1binary:"skip:8"`
+		LastIndex  uint32 `binary:"skip:8"`
 	}
 
 	ListLibraryInfoReply struct {
 		rpc.ReturnCode
 		Count   uint32
-		Objects []LibraryInfo `m1binary:"lengthRef:Count"`
+		Objects []LibraryInfo `binary:"lengthRef:Count"`
 	}
 
 	ListServiceInfoCall struct {
 		FirstIndex uint32
-		LastIndex  uint32 `m1binary:"skip:4"`
+		LastIndex  uint32 `binary:"skip:4"`
 	}
 
 	ListServiceInfoReply struct {
 		rpc.ReturnCode
 		Count   uint32
-		Objects []ServiceInfo `m1binary:"lengthRef:Count"`
+		Objects []ServiceInfo `binary:"lengthRef:Count"`
 	}
 
 	SystemConfigCall struct {
-		spare uint32 `m1binary:"skip:16"`
+		Spare uint32 `binary:"skip:16"`
 	}
 
 	SystemConfigReply struct {
 		rpc.ReturnCode
 		LongFilenames                 bool
-		ApplicationDevelopmentAllowed bool   `m1binary:"skip:8"`
-		SystemDirectory               string `m1binary:"length:84"`
-		DriverDirectory               string `m1binary:"length:84"`
-		ServiceDirectory              string `m1binary:"length:84"`
-		ApplicationDirectory          string `m1binary:"length:84"`
-		ClassesDirectory              string `m1binary:"length:84"` // deprecated since MSys v4.00
-		NonVolatileDirectory          string `m1binary:"length:84"`
-		TemporaryDirectory            string `m1binary:"length:84"`
-		KeysDirectory                 string `m1binary:"length:84"`
-		ConfigurationDirectory        string `m1binary:"length:84"`
-		KeysBackupDirectory           string `m1binary:"length:84,skip:232"`
+		ApplicationDevelopmentAllowed bool   `binary:"skip:8"`
+		SystemDirectory               string `binary:"length:84"`
+		DriverDirectory               string `binary:"length:84"`
+		ServiceDirectory              string `binary:"length:84"`
+		ApplicationDirectory          string `binary:"length:84"`
+		ClassesDirectory              string `binary:"length:84"` // deprecated since MSys v4.00
+		NonVolatileDirectory          string `binary:"length:84"`
+		TemporaryDirectory            string `binary:"length:84"`
+		KeysDirectory                 string `binary:"length:84"`
+		ConfigurationDirectory        string `binary:"length:84"`
+		KeysBackupDirectory           string `binary:"length:84,skip:232"`
 	}
 
 	CoreUsageCall struct {
-		spare uint32 `m1binary:"skip:8"`
+		Spare uint32 `binary:"skip:8"`
 	}
 
 	CoreUsageReply struct {
 		rpc.ReturnCode
-		TimeUnits uint32 `m1binary:"skip:20"` // Clockcycles per microseconds
+		TimeUnits uint32 `binary:"skip:20"` // Clockcycles per microseconds
 		Count     uint32
-		Cores     []CoreUsage `m1binary:"lengthRef:Count"`
+		Cores     []CoreUsage `binary:"lengthRef:Count"`
 	}
 
 	ListConfigurationInfoCall struct {
-		StartIndex uint32 `m1binary:"skip:40"`
+		StartIndex uint32 `binary:"skip:40"`
 	}
 
 	ListConfigurationInfoReply struct {
 		rpc.ReturnCode
 		TotalConfigurations uint32
 		HasMore             bool
-		Count               uint32              `m1binary:"skip:40"`
-		Configurations      []ConfigurationInfo `m1binary:"lengthRef:Count"`
+		Count               uint32              `binary:"skip:40"`
+		Configurations      []ConfigurationInfo `binary:"lengthRef:Count"`
 	}
 )
 

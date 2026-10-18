@@ -80,6 +80,6 @@ func (p *Procedures) ListProcessValueInfo(module res.ModuleNumber, c *ListProces
 }
 
 func (p *Procedures) ListExtendedProcessValueInfo(module res.ModuleNumber, c *ListExtendedProcessValueInfoCall, pageSize uint32) ([]ExtendedProcessValueInfo, error) {
-	c.extendedCallIdentifier = PvInfoExtendedCallIdentifier
+	c.ExtendedCallIdentifier = PvInfoExtendedCallIdentifier
 	return rpc.PaginatedCall(p.client, module, rpc.NewPaginatedProcedure[ExtendedProcessValueInfo, *ListExtendedProcessValueInfoCall, *ListExtendedProcessValueInfoReply](10014, rpc.VersionDefault, c), pageSize)
 }

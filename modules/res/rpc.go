@@ -14,7 +14,7 @@ var Module = ModuleNumber{
 
 type (
 	ModuleInfoCall struct {
-		Name string `m1binary:"length:12"`
+		Name string `binary:"length:12"`
 	}
 
 	ModuleInfoReply struct {
@@ -32,7 +32,7 @@ type (
 	}
 
 	ExtendedModuleInfoCall struct {
-		Name string `m1binary:"length:12"`
+		Name string `binary:"length:12"`
 	}
 
 	ExtendedModuleInfoReply struct {
@@ -57,23 +57,23 @@ type (
 		rpc.ReturnCode
 		ParentTask ModuleTaskInfo
 		Count      uint32
-		Children   []ModuleTaskInfo `m1binary:"lengthRef:Count"`
+		Children   []ModuleTaskInfo `binary:"lengthRef:Count"`
 	}
 
 	ModuleTaskCall struct {
-		Appname string `m1binary:"length:12"`
+		Appname string `binary:"length:12"`
 	}
 
 	ModuleTaskReply struct {
 		rpc.ReturnCode
-		Count       uint32           `m1binary:"skip:16"`
-		ModuleTasks []ModuleTaskInfo `m1binary:"lengthRef:couCountnt"`
+		Count       uint32           `binary:"skip:16"`
+		ModuleTasks []ModuleTaskInfo `binary:"lengthRef:Count"`
 	}
 
 	ModuleAccessCall struct {
-		IPAddress    net.IP `m1binary:"length:4"` // IP address of the caller
+		IPAddress    net.IP `binary:"length:4"` // IP address of the caller
 		ModuleNumber uint32 // Module number of the caller
-		Appname      string `m1binary:"length:12"`
+		Appname      string `binary:"length:12"`
 	}
 
 	ModuleAccessReply struct {
@@ -84,9 +84,9 @@ type (
 	}
 
 	ModuleFreeCall struct {
-		IPAddress    net.IP `m1binary:"length:4"` // IP address of the caller
+		IPAddress    net.IP `binary:"length:4"` // IP address of the caller
 		ModuleNumber uint32 // Module number of the caller
-		Appname      string `m1binary:"length:12"`
+		Appname      string `binary:"length:12"`
 	}
 
 	ModuleFreeReply struct {
@@ -94,7 +94,7 @@ type (
 	}
 
 	ModuleNumberCall struct {
-		Name string `m1binary:"length:12"`
+		Name string `binary:"length:12"`
 	}
 
 	ModuleNumberReply struct {
@@ -103,10 +103,10 @@ type (
 	}
 
 	SystemInfoCall struct {
-		parameter   uint32 // Must be zero
+		Parameter   uint32 // Must be zero
 		MainVersion uint32 // Tool main version, 0 = not relevant
 		SubVersion  uint32 // Tool sub version, 0 = not relevant
-		Toolname    string `m1binary:"length:12"`
+		Toolname    string `binary:"length:12"`
 	}
 
 	SystemInfoReply struct {
@@ -116,8 +116,8 @@ type (
 
 	LoginCall struct {
 		SystemInfoCall
-		Username string `m1binary:"length:20"`
-		Password string `m1binary:"length:16"`
+		Username string `binary:"length:20"`
+		Password string `binary:"length:16"`
 	}
 
 	LoginReply struct {
@@ -127,9 +127,9 @@ type (
 
 	Login2Call struct {
 		SystemInfoCall
-		Username string `m1binary:"length:64"`
-		Password string `m1binary:"length:32"`
-		Local    bool   `m1binary:"skip:19"`
+		Username string `binary:"length:64"`
+		Password string `binary:"length:32"`
+		Local    bool   `binary:"skip:19"`
 	}
 
 	Login2Reply struct {
@@ -138,8 +138,8 @@ type (
 	}
 
 	LogoutCall struct {
-		parameter uint32 // Must be zero
-		authEnt   []byte `m1binary:"length:128"` // Deprecated
+		Parameter uint32 // Must be zero
+		AuthEnt   []byte `binary:"length:128"` // Deprecated
 	}
 
 	LogoutReply struct {
@@ -150,7 +150,7 @@ type (
 		RequestedSessionTimeout        uint32
 		RequestedSessionLifetime       uint32
 		RequestedSMISize               uint32
-		RequestedSessionIdlePrevention bool `m1binary:"skip:127"`
+		RequestedSessionIdlePrevention bool `binary:"skip:127"`
 	}
 
 	OpenReply struct {
@@ -159,7 +159,7 @@ type (
 	}
 
 	CloseCall struct {
-		spare []byte `m1binary:"length:8"`
+		Spare []byte `binary:"length:8"`
 	}
 
 	CloseReply struct {
@@ -167,7 +167,7 @@ type (
 	}
 
 	RenewCall struct {
-		RequestAuthenticationRenewal bool `m1binary:"skip:147"`
+		RequestAuthenticationRenewal bool `binary:"skip:147"`
 	}
 
 	RenewReply struct {
@@ -176,11 +176,11 @@ type (
 	}
 
 	ExtPingCall struct {
-		IPMask   net.IPMask `m1binary:"length:4"`
+		IPMask   net.IPMask `binary:"length:4"`
 		Filter   Filter
 		Reply    ReplyType
 		Mode     ReplyMode
-		Reserved []byte `m1binary:"length:12"`
+		Reserved []byte `binary:"length:12"`
 	}
 
 	ExtPingReply struct {
@@ -194,10 +194,10 @@ type (
 	}
 
 	FlashLEDCall struct {
-		SerialNumber string `m1binary:"length:12,skip:16"`
+		SerialNumber string `binary:"length:12,skip:16"`
 	}
 
 	FlashLEDReply struct {
-		rpc.ReturnCode `m1binary:"skip:16"`
+		rpc.ReturnCode `binary:"skip:16"`
 	}
 )
